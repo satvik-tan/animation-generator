@@ -1,0 +1,86 @@
+# Python
+venv/
+env/
+ENV/
+.venv/
+.env/
+bin/
+include/
+lib/
+lib64/
+share/
+pyvenv.cfg
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Manim output
+media/
+output/
+*.mp4
+*.gif
+*.png
+*.jpg
+*.svg
+*.pdf
+*.tex
+*.log
+*.aux
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+package-lock.json
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+.history/
+
+# System files
+.directory
+.Trash-*
+.nfs*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Microservice specific
+microservice/venv/
+microservice/bin/
+microservice/include/
+microservice/lib/
+microservice/lib64/
+microservice/share/
+microservice/__pycache__/
