@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/button';
 import ChatBox from '@/components/ChatBox';
 import SideBar from '@/components/SideBar';
 import VideoPlayer from '@/components/VideoPlayer';
+import { ScrollArea } from '@/components/ui/scroll-area'; // Import ScrollArea
 
 // Define an interface for ChatBox props to pass down
 interface ChatBoxProps {
-  onVideoGenerated: (videoUrl: string, downloadUrl: string) => void;
+  onVideoGenerated: (videoUrl: string, downloadUrl: string, code: string) => void; // Add code to signature
   onGenerationStart: () => void;
   onGenerationError: (errorMessage: string) => void;
 }
@@ -22,23 +23,26 @@ export default function Main() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | undefined>(undefined);
   const [downloadUrl, setDownloadUrl] = useState<string | undefined>(undefined);
+  const [generatedCode, setGeneratedCode] = useState<string | undefined>(undefined); // Add state for code
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handleToggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
-  const handleVideoGenerated = (videoUrl: string, downloadUrl: string) => {
+  const handleVideoGenerated = (videoUrl: string, downloadUrl: string, code: string) => { // Add code to params
     setVideoUrl(videoUrl);
     setDownloadUrl(downloadUrl);
+    setGeneratedCode(code); // Set the code
     setIsGenerating(false);
   };
 
   const handleGenerationStart = () => {
     setIsGenerating(true);
-    // Reset any previous video
+    // Reset any previous video and code
     setVideoUrl(undefined);
     setDownloadUrl(undefined);
+    setGeneratedCode(undefined); // Reset code
   };
 
   const handleGenerationError = (errorMessage: string) => {
@@ -95,6 +99,7 @@ export default function Main() {
               videoUrl={videoUrl} 
               downloadUrl={downloadUrl}
               isLoading={isGenerating}
+              code={generatedCode} // Pass code to VideoPlayer
             />
           </div>
         </div>

@@ -10,7 +10,17 @@ interface Message {
   sender: 'user' | 'bot';
 }
 
-export default function ChatBox() {
+interface ChatBoxProps {
+  onVideoGenerated: (videoUrl: string, downloadUrl: string, code: string) => void;
+  onGenerationStart: () => void;
+  onGenerationError: (errorMessage: string) => void;
+}
+
+export default function ChatBox({ 
+  onVideoGenerated, 
+  onGenerationStart, 
+  onGenerationError 
+}: ChatBoxProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -22,14 +32,52 @@ export default function ChatBox() {
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
+    onGenerationStart(); // Notify parent that generation has started
 
-    
-    setTimeout(() => {
-      const botMessage: Message = { id: (Date.now() + 1).toString(), text: `Received: "${userMessage.text}". Generating animation...`, sender: 'bot' };
+    // Simulate API call
+    try {
+      // Simulate fetching data from the backend
+      // In a real scenario, this would be an API call:
+      // const response = await fetch('/api/generate-animation', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ prompt: userMessage.text, class_name: "MyScene" }), // Ensure class_name is provided or handled
+      // });
+      // if (!response.ok) {
+      //   const errorData = await response.json();
+      //   throw new Error(errorData.detail || 'Failed to generate animation');
+      // }
+      // const data = await response.json();
+      
+      // SIMULATED DATA
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate network delay
+      const simulatedCode = `from manim import *\n\nclass MyScene(Scene):\n    def construct(self):\n        circle = Circle()\n        self.play(Create(circle))`;
+      const simulatedVideoUrl = "/placeholder.mp4"; // Replace with actual URL from backend
+      const simulatedDownloadUrl = "/placeholder.mp4"; // Replace with actual URL from backend
+
+
+      const botMessage: Message = { 
+        id: (Date.now() + 1).toString(), 
+        text: `Generated animation for: "${userMessage.text}"`, 
+        sender: 'bot' 
+      };
       setMessages((prev) => [...prev, botMessage]);
+      
+      // Pass all data to parent
+      onVideoGenerated(simulatedVideoUrl, simulatedDownloadUrl, simulatedCode);
+
+    } catch (error: any) {
+      const errorMessage = error.message || "An unknown error occurred";
+      const errorBotMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: `Error: ${errorMessage}`,
+        sender: 'bot',
+      };
+      setMessages((prev) => [...prev, errorBotMessage]);
+      onGenerationError(errorMessage);
+    } finally {
       setIsLoading(false);
-      // Here you would trigger the video generation and update the VideoPlayer component
-    }, 1000);
+    }
   };
 
   return (
