@@ -34,37 +34,47 @@ export default function ChatBox({
     setIsLoading(true);
     onGenerationStart(); // Notify parent that generation has started
 
-    // Simulate API call
+    // Make actual API call to backend
     try {
-      // Simulate fetching data from the backend
-      // In a real scenario, this would be an API call:
-      // const response = await fetch('/api/generate-animation', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ prompt: userMessage.text, class_name: "MyScene" }), // Ensure class_name is provided or handled
-      // });
-      // if (!response.ok) {
-      //   const errorData = await response.json();
-      //   throw new Error(errorData.detail || 'Failed to generate animation');
-      // }
-      // const data = await response.json();
-      
-      // SIMULATED DATA
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate network delay
-      const simulatedCode = `from manim import *\n\nclass MyScene(Scene):\n    def construct(self):\n        circle = Circle()\n        self.play(Create(circle))`;
-      const simulatedVideoUrl = "/placeholder.mp4"; // Replace with actual URL from backend
-      const simulatedDownloadUrl = "/placeholder.mp4"; // Replace with actual URL from backend
+      const response = await fetch('/api/generate-animation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          prompt: userMessage.text, 
+          class_name: "MainScene" 
+        }),
+      });
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to generate animation');
+      }
+
+      // The backend returns a FileResponse (video file), so we need to handle it differently
+      // Create a blob URL for the video
+      const videoBlob = await response.blob();
+      const videoUrl = URL.createObjectURL(videoBlob);
+      const downloadUrl = videoUrl; // Same URL can be used for download
+
+      // For now, we'll use a placeholder for the code since the current backend doesn't return it
+      // You'll need to modify the backend to return JSON with code, video_url, etc.
+      const placeholderCode = `from manim import *
+
+class MainScene(Scene):
+    def construct(self):
+        # Generated code for: "${userMessage.text}"
+        # This is a placeholder - update backend to return actual code
+        pass`;
 
       const botMessage: Message = { 
         id: (Date.now() + 1).toString(), 
-        text: `Generated animation for: "${userMessage.text}"`, 
+        text: `Animation generated successfully for: "${userMessage.text}"`, 
         sender: 'bot' 
       };
       setMessages((prev) => [...prev, botMessage]);
       
       // Pass all data to parent
-      onVideoGenerated(simulatedVideoUrl, simulatedDownloadUrl, simulatedCode);
+      onVideoGenerated(videoUrl, downloadUrl, placeholderCode);
 
     } catch (error: any) {
       const errorMessage = error.message || "An unknown error occurred";

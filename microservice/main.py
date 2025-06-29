@@ -170,6 +170,7 @@ Best Practices:
 - Remove or fade out elements that are no longer needed
 - Use updaters for dynamic or interactive animations
 - Maintain clear visual hierarchy with padding and spacing
+- Only reference scene or call animation methods like .play() on Scene objects, never on Mobjects like Line, Dot, or Circle
 
 Important Output Requirements:
 - The output code must be a single valid Manim Python script
@@ -178,6 +179,12 @@ Important Output Requirements:
 - Ensure visual balance, compositional clarity, and a professional polish
 - Manim Community v0.19.0 , only use sytax and features available in this version
 - Do not use any other libraries or modules
+-Do not use Camera
+
+-Ensure all NumPy array assignments strictly match shapes to prevent broadcasting errors, especially for point arrays in Manim
+
+
+MOST IMPORTANT REQUIREMENT: Manim Community v0.19.0 write code for this and only this
 
 
 Only output a complete and runnable Python code block, and nothing else.
