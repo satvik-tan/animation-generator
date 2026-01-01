@@ -19,5 +19,13 @@ def get_db():
 
 def init_db():
     """Initialize database tables"""
-    from models.job import Base
-    Base.metadata.create_all(bind=engine)
+    try:
+        print("🔄 Initializing database...")
+        from app.models.job import Base
+        print("✅ Models imported successfully")
+        Base.metadata.create_all(bind=engine)
+        print("✅ Database tables created successfully")
+    except Exception as e:
+        print(f"❌ Error initializing database: {e}")
+        import traceback
+        traceback.print_exc()

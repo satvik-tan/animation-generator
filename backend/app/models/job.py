@@ -12,3 +12,10 @@ class Job(Base):
     user_id = Column(String, nullable=False)
     prompt = Column(Text, nullable=False)
     status = Column(String, nullable=False)  # QUEUED / PROCESSING / COMPLETED / FAILED
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(String, primary_key=True)
+    name = Column(String, nullable=False)
+    email = Column(String, nullable=False, unique=True)
