@@ -203,5 +203,3 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 This project is licensed under the MIT License - see the `LICENSE` file for details (if one is created).
 
 ---
-
-*This README was generated with assistance from an AI coding agent.*
