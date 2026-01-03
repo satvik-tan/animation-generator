@@ -6,7 +6,7 @@ This project is a web application that allows users to generate short animations
 
 *   **Text-to-Animation:** Users can type a description of an animation, and the system will generate a corresponding video.
 *   **Manim Integration:** Leverages the Manim library for programmatic animation generation.
-*   **LLM-Powered Scripting:** An LLM (GPT-4 or similar, via an API) translates natural language prompts into Python code for Manim.
+*   **LLM-Powered Scripting:** An LLM (Gemini) translates natural language prompts into Python code for Manim.
 *   **React Frontend:** A modern, responsive user interface built with React, TypeScript, Vite, and shadcn/ui.
 *   **FastAPI Backend:** A Python-based microservice handles API requests, LLM interaction, and Manim script execution.
 *   **Video Preview & Download:** Users can preview the generated animation directly in the browser and download the video file.
