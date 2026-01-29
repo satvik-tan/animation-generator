@@ -6,10 +6,19 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# System deps (psycopg2 needs these)
+# System deps (psycopg2, Manim, FFmpeg, LaTeX, Cairo, Pango)
 RUN apt-get update && apt-get install -y \
     gcc \
+    g++ \
     libpq-dev \
+    pkg-config \
+    libcairo2-dev \
+    libpango1.0-dev \
+    ffmpeg \
+    texlive \
+    texlive-latex-extra \
+    texlive-fonts-extra \
+    texlive-science \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python deps
@@ -19,7 +28,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy app code
 COPY app/ ./app
 
+# Create startup script that runs both API and worker
+COPY start.sh .
+RUN chmod +x start.sh
+
 # Expose FastAPI port
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["./start.sh"]

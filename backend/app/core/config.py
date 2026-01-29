@@ -13,6 +13,15 @@ class Settings(BaseSettings):
     # Clerk Auth
     CLERK_JWT_KEY: Optional[str] = None
     
+    # AWS S3
+    AWS_ACCESS_KEY_ID: Optional[str] = None
+    AWS_SECRET_ACCESS_KEY: Optional[str] = None
+    AWS_REGION: str = "us-east-1"
+    AWS_S3_BUCKET: Optional[str] = None
+    
+    # Frontend
+    FRONTEND_URL: str = "http://localhost:5173"
+    
     # API
     API_V1_STR: str = "/api/v1"
     PROJECT_NAME: str = "Animation Generator"

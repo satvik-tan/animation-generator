@@ -10,3 +10,13 @@ python-dotenv
 pydantic
 pydantic-settings
 typing-extensions
+
+# AWS S3 integration
+boto3
+
+# LLM integration
+openai
+
+# Manim dependencies
+manim
+markdown-it-py
