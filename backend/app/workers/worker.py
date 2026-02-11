@@ -38,13 +38,22 @@ def worker_loop():
             # 2️⃣ Load job
             job = db.query(Job).filter(Job.id == job_id).one()
 
-            # 3️⃣ Execute
-            s3_key, presigned_url = execute_job(job)
+            # 3️⃣ Check if this is an iteration (has parent_job_id)
+            previous_code = None
+            if job.parent_job_id:
+                parent = db.query(Job).filter(Job.id == job.parent_job_id).one_or_none()
+                if parent and parent.generated_code:
+                    previous_code = parent.generated_code
+                    print(f"🔄 Iterating on parent job {job.parent_job_id}")
 
-            # 4️⃣ Mark completed
+            # 4️⃣ Execute
+            s3_key, presigned_url, generated_code = execute_job(job, previous_code=previous_code)
+
+            # 5️⃣ Mark completed
             job.status = Status.COMPLETED
-            job.s3_key = s3_key  # Store permanent S3 key
-            job.result_url = presigned_url  # Store initial pre-signed URL
+            job.s3_key = s3_key
+            job.result_url = presigned_url
+            job.generated_code = generated_code
             db.commit()
 
         except Exception as e:

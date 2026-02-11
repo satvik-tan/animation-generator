@@ -27,8 +27,10 @@ class Job(Base):
         default=Status.QUEUED,
         index=True  # Index for faster status queries
     )
+    parent_job_id = Column(UUID(as_uuid=True), nullable=True, index=True)  # For iteration: references the job being refined
     s3_key = Column(String, nullable=True)  # Permanent S3 object key (e.g., animations/user123/abc.mp4)
     result_url = Column(String, nullable=True)  # Temporary pre-signed URL (expires in 1 hour)
+    generated_code = Column(Text, nullable=True)  # Store the working Manim code for future iterations
     error_message = Column(Text, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, index=True)  # Index for sorting

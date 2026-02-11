@@ -20,3 +20,10 @@ openai
 # Manim dependencies
 manim
 markdown-it-py
+
+clerk-backend-api
+alembic
+
+# JWT and HTTP
+pyjwt[crypto]
+requests

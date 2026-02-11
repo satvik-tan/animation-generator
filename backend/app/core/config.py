@@ -11,7 +11,10 @@ class Settings(BaseSettings):
     REDIS_PORT: int = 6379
     
     # Clerk Auth
-    CLERK_JWT_KEY: Optional[str] = None
+    CLERK_SECRET_KEY: Optional[str] = None
+    
+    # Dev mode
+    DEV_MODE: bool = False
     
     # AWS S3
     AWS_ACCESS_KEY_ID: Optional[str] = None

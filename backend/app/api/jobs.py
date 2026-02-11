@@ -18,11 +18,24 @@ def create_job(
     user_id: str = Depends(verify_clerk_jwt),
     db: Session = Depends(get_db),
 ):
+    # If iterating, validate the parent job belongs to this user and is completed
+    if req.parent_job_id:
+        parent = db.execute(
+            select(Job).where(Job.id == req.parent_job_id)
+        ).scalar_one_or_none()
+        if not parent:
+            raise HTTPException(status_code=404, detail="Parent job not found")
+        if parent.user_id != user_id:
+            raise HTTPException(status_code=403, detail="Forbidden")
+        if parent.status != Status.COMPLETED:
+            raise HTTPException(status_code=400, detail="Can only iterate on completed animations")
+
     job = Job(
         id=uuid4(),
         user_id=user_id,
         prompt=req.prompt,
-        status=Status.QUEUED,  # Use the enum, not string
+        status=Status.QUEUED,
+        parent_job_id=req.parent_job_id,
     )
 
     db.add(job)
@@ -32,7 +45,10 @@ def create_job(
 
     return JobResponse(
         job_id=job.id,
-        status=job.status.value,  # Convert enum to string for response
+        status=job.status.value,
+        prompt=job.prompt,
+        parent_job_id=job.parent_job_id,
+        created_at=job.created_at,
     )
 
 
@@ -68,12 +84,10 @@ def get_job(
         status=job.status.value,
         result_url=job.result_url,
         error_message=job.error_message,
+        prompt=job.prompt,
+        parent_job_id=job.parent_job_id,
+        created_at=job.created_at,
     )
-
-@router.get("/health")
-def health_check():
-    ##return status code 200 if the service is running
-    return {"status": "ok"}
 
 @router.get("")
 def list_jobs(
@@ -89,6 +103,9 @@ def list_jobs(
             status=job.status.value,
             result_url=job.result_url,
             error_message=job.error_message,
+            prompt=job.prompt,
+            parent_job_id=job.parent_job_id,
+            created_at=job.created_at,
         )
         for job in jobs
     ]
@@ -148,5 +165,8 @@ def regenerate_video_url(
         status=job.status.value,
         result_url=job.result_url,
         error_message=job.error_message,
+        prompt=job.prompt,
+        parent_job_id=job.parent_job_id,
+        created_at=job.created_at,
     )
 

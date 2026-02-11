@@ -4,514 +4,312 @@ from dotenv import load_dotenv
 from pathlib import Path
 import uuid
 from markdown_it import MarkdownIt
-import subprocess 
+import subprocess
+import re
 from typing import Tuple
 import time
 import boto3
 
 load_dotenv()
 
-client = OpenAI(
-    api_key=os.getenv("OPENROUTER_API_KEY"),
-    base_url="https://openrouter.ai/api/v1"
+# -- LLM Clients --
+groq_client = OpenAI(
+    api_key=os.getenv("GROQ_API_KEY"),
+    base_url="https://api.groq.com/openai/v1",
 )
 
-# Create necessary directories
+GROQ_MODEL = "llama-3.3-70b-versatile"
+
+# -- Directories --
 OUTPUT_DIR = Path("output")
 ANIMATION_DIR = OUTPUT_DIR / "animations"
-
-# Create directories if they don't exist
 OUTPUT_DIR.mkdir(exist_ok=True)
 ANIMATION_DIR.mkdir(exist_ok=True)
 
+MANIM_TIMEOUT = 120
+
 
 def preprocess_code(content: str) -> str:
-    """
-    Extract Python code blocks from markdown content using markdown-it-py
-    
-    Args:
-        content: Markdown formatted string containing code blocks
-        
-    Returns:
-        Extracted Python code or empty string if no code blocks found
-    """
     md = MarkdownIt()
     tokens = md.parse(content)
-    
-    # Get all Python code blocks
-    python_code_blocks = [
-        t.content for t in tokens 
-        if t.type == 'fence' and t.info.strip() == 'python'
+    python_blocks = [
+        t.content
+        for t in tokens
+        if t.type == "fence" and t.info.strip().lower() in ("python", "py", "")
     ]
-    
-    # Return first code block or empty string
-    return python_code_blocks[0] if python_code_blocks else ""
+    return python_blocks[0] if python_blocks else ""
 
 
 def sanitize_code(code: str) -> str:
-    """
-    Remove common errors from generated Manim code.
-    
-    Args:
-        code: The generated Manim code
-        
-    Returns:
-        Sanitized code with common errors removed
-    """
-    import re
-    
-    # Remove lines containing self.camera.frame (not available in base Scene)
-    lines = code.split('\n')
-    sanitized_lines = []
+    lines = code.split("\n")
+    sanitized: list[str] = []
     skip_block = False
     indent_level = 0
-    
+
     for i, line in enumerate(lines):
-        # Check if line contains camera.frame
-        if 'self.camera.frame' in line or 'camera.frame' in line:
-            # Skip this line and any continuation
+        if "self.camera.frame" in line or "camera.frame" in line:
             skip_block = True
             indent_level = len(line) - len(line.lstrip())
-            print(f"⚠️  Removing camera.frame usage at line {i+1}: {line.strip()[:80]}")
+            print(f"Warning: Removing camera.frame at line {i+1}")
             continue
-        
-        # Check if we're in a skip block
         if skip_block:
             current_indent = len(line) - len(line.lstrip())
-            # If line is indented more than the camera line, it's a continuation
             if line.strip() and current_indent > indent_level:
-                print(f"⚠️  Removing continuation line {i+1}: {line.strip()[:80]}")
                 continue
-            else:
-                skip_block = False
-        
-        sanitized_lines.append(line)
-    
-    sanitized_code = '\n'.join(sanitized_lines)
-    
-    # Also remove any MovingCameraScene or ThreeDScene inheritance
-    sanitized_code = re.sub(r'class\s+(\w+)\s*\(\s*MovingCameraScene\s*\)', r'class \1(Scene)', sanitized_code)
-    sanitized_code = re.sub(r'class\s+(\w+)\s*\(\s*ThreeDScene\s*\)', r'class \1(Scene)', sanitized_code)
-    
-    return sanitized_code
+            skip_block = False
+        sanitized.append(line)
+
+    result = "\n".join(sanitized)
+    result = re.sub(r"class\s+(\w+)\s*\(\s*MovingCameraScene\s*\)", r"class \1(Scene)", result)
+    result = re.sub(r"class\s+(\w+)\s*\(\s*ThreeDScene\s*\)", r"class \1(Scene)", result)
+
+    scene_classes = re.findall(r"class\s+(\w+)\s*\(\s*Scene\s*\)", result)
+    if scene_classes and scene_classes[0] != "MainScene":
+        result = re.sub(
+            rf"class\s+{re.escape(scene_classes[0])}\s*\(\s*Scene\s*\)",
+            "class MainScene(Scene)",
+            result,
+            count=1,
+        )
+    if len(scene_classes) > 1:
+        for extra in scene_classes[1:]:
+            result = re.sub(
+                rf"\nclass\s+{re.escape(extra)}\s*\(\s*Scene\s*\):.*?(?=\nclass\s|\Z)",
+                "",
+                result,
+                flags=re.DOTALL,
+            )
+    return result
 
 
 def push_manim_code(code: str) -> Path:
-    """
-    Save generated code to a unique file in the animations directory.
-    
-    Args:
-        code: The processed Manim code to save
-        
-    Returns:
-        Path to the saved file
-    """
-    # Sanitize code before saving
     code = sanitize_code(code)
-    
-    # Generate unique filename using UUID
     filename = f"animation_{uuid.uuid4()}.py"
     file_path = ANIMATION_DIR / filename
-    
-    with open(file_path, "w") as f:
-        f.write(code)
-    
+    file_path.write_text(code)
     return file_path
 
 
-def run_manim(file_path: Path) -> Tuple[bool, str, Path]:
-    """
-    Execute Manim animation using subprocess.
-    
-    Args:
-        file_path: Path to the Python file containing Manim code
-        
-    Returns:
-        Tuple[bool, str, Path]: (success status, error message or logs, video path)
-    """
+def run_manim(file_path: Path, quality: str = "-ql") -> Tuple[bool, str, Path]:
+    quality_map = {"-ql": "480p15", "-qm": "720p30", "-qh": "1080p60"}
+    quality_dir = quality_map.get(quality, "480p15")
+
     try:
         result = subprocess.run(
-            [
-                "manim",
-                "-qm",
-                "--format=mp4",
-                str(file_path),
-                "MainScene"
-            ],
+            ["manim", quality, "--format=mp4", str(file_path), "MainScene"],
             capture_output=True,
             text=True,
-            check=True
+            timeout=MANIM_TIMEOUT,
         )
+        video_path = Path("media") / "videos" / file_path.stem / quality_dir / "MainScene.mp4"
 
-        # Get the expected video path
-        video_path = (
-             Path("media") / "videos" / file_path.stem / "720p30"/"MainScene.mp4" )
-        
-        max_attempts = 10
-        for attempt in range(max_attempts):
+        if result.returncode != 0:
+            return False, f"Manim exit code {result.returncode}:\n{result.stderr}", Path("")
+
+        for attempt in range(10):
             if video_path.exists():
-                print(f"Video found at: {video_path} after {attempt} attempts")
-                # Return success with stdout/stderr logs
-                execution_logs = f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
-                return True, execution_logs, video_path
-            else:
-                print(f"Video file not found yet (attempt {attempt+1}/{max_attempts}), waiting...")
-                time.sleep(1)
-        
-        # If we get here, the file wasn't found after all attempts
-        error_msg = f"Video file not generated at {video_path} after {max_attempts} attempts. Manim stdout: {result.stdout}\nManim stderr: {result.stderr}"
-        print(error_msg)
-        return False, error_msg, Path("")
-            
-    except subprocess.CalledProcessError as e:
-        error_msg = f"Manim execution failed: {e.stderr}"
-        print(error_msg)
-        return False, error_msg, Path("")
+                logs = f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+                return True, logs, video_path
+            time.sleep(1)
+
+        return False, f"Video not found at {video_path} after 10s.\n{result.stderr}", Path("")
+    except subprocess.TimeoutExpired:
+        return False, f"Manim timed out after {MANIM_TIMEOUT}s", Path("")
     except Exception as ex:
-        error_msg = f"Unexpected error in run_manim: {str(ex)}"
-        print(error_msg)
-        return False, error_msg, Path("")
+        return False, f"Unexpected error: {ex}", Path("")
 
 
 def upload_to_s3(file_path: Path, bucket_name: str, object_name: str) -> str:
-    """
-    Upload a file to an S3 bucket and generate a pre-signed URL.
-
-    Args:
-        file_path: Path to the file to upload.
-        bucket_name: Name of the S3 bucket.
-        object_name: S3 object name (key).
-
-    Returns:
-        str: Pre-signed URL for the uploaded file.
-
-    Raises:
-        Exception: If the upload or URL generation fails.
-    """
-    try:
-        s3_client = boto3.client(
-            's3',
-            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-            region_name=os.getenv("AWS_REGION")
-        )
-
-        # Upload the file to S3
-        s3_client.upload_file(str(file_path), bucket_name, object_name)
-
-        # Generate a pre-signed URL for the uploaded file
-        url = s3_client.generate_presigned_url(
-            'get_object',
-            Params={'Bucket': bucket_name, 'Key': object_name},
-            ExpiresIn=3600  # URL expires in 1 hour
-        )
-
-        return url
-
-    except Exception as e:
-        print(f"Error uploading to S3: {e}")
-        raise Exception(f"Failed to upload file to S3: {str(e)}")
-
-
-def generate_code(video_data: str) -> str:
-    """
-    Generate initial Manim code from video description.
-    
-    Args:
-        video_data: Description of the video to generate
-        
-    Returns:
-        Generated Python code
-    """
-    system_prompt = '''You are an expert in creating animated videos using the Manim Community v0.19.0 library.
-
-You are tasked to generate a high quality animated video with the following data:
-
-<video_data>
-{video_data}
-</video_data>
-
-You are free to structure the video to your liking but keep the following things in mind:
- 
-- generate a python script using Manim Community v0.19.0 that creates the video described in the video_data section.
-- If you decide to use multiple scenes, each scene should be defined as a separate class inheriting from `Scene` (or an appropriate Manim scene class). 
-- Do not create a class aggregating these scenes
-- Be aware of the screen size and resolution and make sure elements do not overlap or go out of frame
-- Do NOT use external resources or dependencies like svg's, images, or other libraries.
-- Do not adjust the manim configuration inside the code. Config adjustments like `config.quality` or `config.output_file` are forbidden.
-- Each Scene should have a title at the top and contents which are displayed below.
-- Keep in mind pacing and timing to ensure the video flows well and is engaging to watch.
-
-Focus on creating an asthetically pleasing and engaging video, leveraging all feautures of the manim library.
-This includes animated text, graphical elements, animations and more.
-
-Start now by creating the code for the video, do not respond with anything else.'''
-
-    response = client.chat.completions.create(
-        model="openai/gpt-oss-120b:free",
-        messages=[
-            {"role": "system", "content": system_prompt.replace("{video_data}", video_data)},
-            {"role": "user", "content": f"Generate Manim code for: {video_data}"}
-        ],
-        extra_body={"reasoning": {"enabled": True}}
+    s3 = boto3.client(
+        "s3",
+        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+        region_name=os.getenv("AWS_REGION"),
+    )
+    s3.upload_file(str(file_path), bucket_name, object_name)
+    return s3.generate_presigned_url(
+        "get_object",
+        Params={"Bucket": bucket_name, "Key": object_name},
+        ExpiresIn=3600,
     )
 
-    if not response or not response.choices or not response.choices[0].message.content:
-        raise Exception("No response from the model during code generation")
 
-    return response.choices[0].message.content
+# -- LLM Prompts --
+
+SYSTEM_PROMPT_GENERATE = """You are an expert in creating animated videos using the Manim Community v0.19.0 library.
+
+ABSOLUTE RULES (violation = broken code):
+1. Create EXACTLY ONE scene class named `MainScene(Scene)`.
+2. ALL animation logic goes inside `def construct(self):`.
+3. `from manim import *` is the ONLY import you may use.
+4. NEVER use `self.camera`, `self.camera.frame`, `MovingCameraScene`, or `ThreeDScene`.
+5. NEVER import external files, SVGs, images, or non-standard libraries.
+6. NEVER adjust config (e.g., `config.pixel_width`).
+7. Use hex colours (e.g. "#58C4DD"), `run_time=` for durations.
+8. Do NOT use `points=` in Polygon / Polygram constructors.
+
+Output ONLY a single fenced Python code block."""
+
+SYSTEM_PROMPT_ITERATE = """You are an expert in creating animated videos using the Manim Community v0.19.0 library.
+
+The user has an existing animation and wants to modify it. You will receive the PREVIOUS working code and the user's modification request.
+
+ABSOLUTE RULES (violation = broken code):
+1. Create EXACTLY ONE scene class named `MainScene(Scene)`.
+2. ALL animation logic goes inside `def construct(self):`.
+3. `from manim import *` is the ONLY import you may use.
+4. NEVER use `self.camera`, `self.camera.frame`, `MovingCameraScene`, or `ThreeDScene`.
+5. NEVER import external files, SVGs, images, or non-standard libraries.
+6. NEVER adjust config.
+7. Use hex colours, `run_time=` for durations.
+8. Do NOT use `points=` in Polygon / Polygram constructors.
+
+Preserve the working parts of the previous code. Only modify what the user asks for.
+Output ONLY a single fenced Python code block."""
 
 
-def review_code(video_code: str, execution_logs: str, previous_reviews: str = "", 
-                success_rate: float = 0.0, scenes_rendered: int = 0, total_scenes: int = 1) -> str:
-    """
-    Review generated Manim code and provide feedback.
-    
-    Args:
-        video_code: The generated Manim code
-        execution_logs: Logs from attempting to execute the code
-        previous_reviews: Previous review feedback (if any)
-        success_rate: Percentage of successful scenes
-        scenes_rendered: Number of successfully rendered scenes
-        total_scenes: Total number of scenes
-        
-    Returns:
-        Review feedback as string
-    """
-    # Choose prompt based on success rate
-    if success_rate >= 80.0:
-        # Visual improvement prompt
-        system_prompt = f'''You are an expert code reviewer specialized in the manim visualization library.
-
-You will be receiving the current iteration of code <video_code> for a manim video that has rendered successfully with {success_rate}% of scenes working ({scenes_rendered} of {total_scenes}). Since the code is functionally working well, focus on VISUAL IMPROVEMENTS and CREATIVE ENHANCEMENTS.
-
-Additionally you will receive: 
-- Previous Reviews -> previous reviews of the current or past iterations of the code.
-- Execution Logs / Errors -> The execution logs of the current code, which may contain useful error details. 
-
-# Previous Reviews:
-<previous_reviews>
-{previous_reviews}
-</previous_reviews>
-
-# Video Code:
-<video_code>
-{video_code}
-</video_code>
-
-# Execution Logs:
-<execution_logs>
-{execution_logs}
-</execution_logs>
-
-Since the code is working well technically, conduct a thorough review focused on VISUAL ENHANCEMENTS and provide creative suggestions to make the animation more engaging, polished, and visually appealing.
-
-If there are scenes that are not working yet, focus on fixing these critical issues first, while making only minor suggestions for the visual improvements.
-
-IMPORTANT: Do not include things that were already mentioned in <previous_reviews>. Except for things that were not fixed.
-
-Put special focus on the following aspects:
-
-- Visual composition and layout improvements
-- Creative use of manim features (transforms, morphing, camera movements)
-- Visual hierarchy
-- Background elements, decorative components
-- Scene transitions and continuity
-- Overall visual polish and professional appearance
-- Be tasteful, do not overdo it, keep the styling minimal but elegant, according to modern design principles
-
-Do NOT propose to use external resources or dependencies like svg's, images, or other libraries.
-Do NOT propose config adjustments like `config.quality` in the review.
-Do NOT respond with the improved code. Instead describe the changes that should be made.
-
-Give feedback that will make the video more visually appealing and engaging, even if the current version works correctly.'''
+def generate_code(prompt: str, previous_code: str | None = None) -> str:
+    if previous_code:
+        system = SYSTEM_PROMPT_ITERATE
+        user_msg = f"Previous working code:\n```python\n{previous_code}\n```\n\nUser's modification request: {prompt}"
     else:
-        # Functional review prompt
-        system_prompt = f'''You are an expert code reviewer specialized in the manim visualization libary.
+        system = SYSTEM_PROMPT_GENERATE
+        user_msg = f"Generate Manim code for: {prompt}"
 
-You will be receiving the current iteration of code <video_code> for a manim video and you will have to review it for any potential issues or improvements.
+    resp = groq_client.chat.completions.create(
+        model=GROQ_MODEL,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user_msg},
+        ],
+    )
+    if not resp or not resp.choices or not resp.choices[0].message.content:
+        raise Exception("Empty response from Groq during code generation")
+    return resp.choices[0].message.content
 
-Additionally you will receive: 
-- Previous Reviews -> previous reviews of the current or past iterations of the code.
-- Execution Logs / Errros -> The execution logs of the current code, which may contain useful error defails. 
 
-# Previous Reviews:
+def review_code(code: str, error_logs: str, previous_reviews: str = "") -> str:
+    system = f"""You are an expert Manim Community v0.19.0 code reviewer.
+
+<code>
+{code}
+</code>
+
+<errors>
+{error_logs}
+</errors>
+
 <previous_reviews>
 {previous_reviews}
 </previous_reviews>
 
-# Video Code:
-<video_code>
-{video_code}
-</video_code>
+Identify the ROOT CAUSE of the errors. Do NOT repeat previous advice.
+Do NOT suggest self.camera, MovingCameraScene, ThreeDScene, or external resources.
+Respond with a concise list of specific fixes. Do NOT include corrected code."""
 
-# Execution Logs:
-<execution_logs>
-{execution_logs}
-</execution_logs>
-
-Conduct a thorough review of the code and provide feedback on all aspects regarding its functionality.
-
-IMPORTANT: Do not include things that were already mentioned in <previous_reviews>. Except for things that were not fixed.
-
-Put special focus on the following aspects:
-
-- The code should only contain valid python syntax and proper use of the library.
-- The video rendered by the code should have no elements that overlap.
-- Only use functions that are part of the manim community v0.19.0 library or standard python libary.
-
-Do NOT propose to use external resources or dependencies like svg's, images, or other libraries.
-Do NOT propose config adjustments like `config.quality` in the review.
-Do NOT respond with the improved code. Instead describe the changes that should be made.
-
-Do not mention minor things like missing comments. Give feedback that is crucial to the functionality of the script.'''
-
-    response = client.chat.completions.create(
-        model="openai/gpt-oss-120b:free",
+    resp = groq_client.chat.completions.create(
+        model=GROQ_MODEL,
         messages=[
-            {"role": "system", "content": system_prompt.replace("{previous_reviews}", previous_reviews)
-                                                      .replace("{video_code}", video_code)
-                                                      .replace("{execution_logs}", execution_logs)},
-            {"role": "user", "content": "Review the code and provide feedback."}
+            {"role": "system", "content": system},
+            {"role": "user", "content": "Review the code and describe fixes."},
         ],
-        extra_body={"reasoning": {"enabled": True}}
     )
-
-    if not response or not response.choices or not response.choices[0].message.content:
-        raise Exception("No response from the model during code review")
-
-    return response.choices[0].message.content
+    if not resp or not resp.choices or not resp.choices[0].message.content:
+        raise Exception("Empty response from Groq during review")
+    return resp.choices[0].message.content
 
 
-def improve_code(video_code: str, review_feedback: str) -> str:
-    """
-    Improve code based on review feedback.
-    
-    Args:
-        video_code: Current Manim code
-        review_feedback: Feedback from code review
-        
-    Returns:
-        Improved Python code
-    """
-    system_prompt = '''You are an expert in the Manim Community v0.19.0 library.
+def improve_code(code: str, review_feedback: str) -> str:
+    system = """You are an expert Manim Community v0.19.0 developer.
+Apply the review feedback and output ONLY the corrected Python code in a fenced code block.
 
-You will receive:
-- Current code for a Manim animation
-- Review feedback describing issues and improvements needed
+RULES:
+- EXACTLY ONE class `MainScene(Scene)`
+- `from manim import *` only
+- NO self.camera, NO MovingCameraScene, NO ThreeDScene
+- NO external resources, NO config changes"""
 
-Your task is to apply the review feedback and generate improved code that addresses all the points mentioned.
-
-IMPORTANT:
-- Only use features available in Manim Community v0.19.0
-- Do NOT use external resources (svg, images, other libraries)
-- Do NOT adjust config settings in the code
-- Output ONLY the improved Python code in a markdown code block
-- Do not include explanations or comments
-
-Generate the improved code now.'''
-
-    response = client.chat.completions.create(
-        model="openai/gpt-oss-120b:free",
+    resp = groq_client.chat.completions.create(
+        model=GROQ_MODEL,
         messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Current Code:\n```python\n{video_code}\n```\n\nReview Feedback:\n{review_feedback}\n\nGenerate improved code:"}
+            {"role": "system", "content": system},
+            {
+                "role": "user",
+                "content": f"Current code:\n```python\n{code}\n```\n\nReview feedback:\n{review_feedback}\n\nGenerate fixed code:",
+            },
         ],
-        extra_body={"reasoning": {"enabled": True}}
     )
-
-    if not response or not response.choices or not response.choices[0].message.content:
-        raise Exception("No response from the model during code improvement")
-
-    return response.choices[0].message.content
+    if not resp or not resp.choices or not resp.choices[0].message.content:
+        raise Exception("Empty response from Groq during improvement")
+    return resp.choices[0].message.content
 
 
-def generate_manim_animation(prompt: str, user_id: str | None = None, max_iterations: int = 3) -> tuple[str, str]:
+def generate_manim_animation(
+    prompt: str,
+    user_id: str | None = None,
+    max_iterations: int = 3,
+    previous_code: str | None = None,
+) -> tuple[str, str, str]:
     """
-    Generate Manim animation with iterative improvement and return S3 key and pre-signed URL.
-
-    Args:
-        prompt: User's text description of the animation
-        user_id: Optional user ID for user-specific S3 paths
-        max_iterations: Maximum number of improvement iterations
-
-    Returns:
-        tuple[str, str]: (s3_key, presigned_url) - S3 object key and temporary pre-signed URL
-
-    Raises:
-        Exception: If animation generation or rendering fails
+    Returns: (s3_key, presigned_url, generated_code)
     """
-    file_path = None
-    video_path = None
+    file_path: Path | None = None
     previous_reviews = ""
-    
+    last_logs = ""
+
     try:
-        # Step 1: Generate initial code
-        print(f"Generating initial code for prompt: {prompt}")
-        raw_code = generate_code(prompt)
-        code = preprocess_code(raw_code)
-        
-        if not code:
-            code = raw_code  # Fallback if no markdown code block found
-        
-        # Iterative improvement loop
+        print(f"Generating code for: {prompt}")
+        raw = generate_code(prompt, previous_code=previous_code)
+        code = preprocess_code(raw) or raw
+
         for iteration in range(max_iterations):
             print(f"\n=== Iteration {iteration + 1}/{max_iterations} ===")
-            
-            # Step 2: Save and test the code
+
             file_path = push_manim_code(code)
-            success, logs, video_path = run_manim(file_path)
-            
+            success, logs, video_path = run_manim(file_path, quality="-ql")
+            last_logs = logs
+
             if success:
-                print(f"✅ Successfully rendered video on iteration {iteration + 1}")
-                
-                # Upload to S3
-                bucket_name = os.getenv("AWS_S3_BUCKET")
-                if not bucket_name:
-                    raise Exception("AWS_S3_BUCKET environment variable not set")
-                
-                # Generate user-specific S3 key
-                # Format: {user_id}_video_{timestamp}.mp4
-                timestamp = int(time.time())
-                filename = f"{user_id or 'anonymous'}_video_{timestamp}.mp4"
-                s3_key = f"videos/{user_id or 'anonymous'}/{filename}"
-                
-                presigned_url = upload_to_s3(video_path, bucket_name, s3_key)
-                print(f"✅ Uploaded to S3: {s3_key}")
-                
-                # Cleanup
+                print("Re-rendering at 720p30 for delivery...")
+                success_hq, _, video_path_hq = run_manim(file_path, quality="-qm")
+                if success_hq:
+                    video_path = video_path_hq
+
+                bucket = os.getenv("AWS_S3_BUCKET")
+                if not bucket:
+                    raise Exception("AWS_S3_BUCKET not set")
+
+                ts = int(time.time())
+                uid = user_id or "anonymous"
+                s3_key = f"videos/{uid}/{uid}_video_{ts}.mp4"
+                presigned_url = upload_to_s3(video_path, bucket, s3_key)
+                print(f"Uploaded to S3: {s3_key}")
+
+                # Read back the sanitized code that was actually rendered
+                rendered_code = file_path.read_text() if file_path.exists() else code
+
                 if file_path and file_path.exists():
                     file_path.unlink()
-                
-                return s3_key, presigned_url
-            
-            # Step 3: Review failed code
-            print(f"❌ Rendering failed on iteration {iteration + 1}, reviewing code...")
-            review = review_code(code, logs, previous_reviews, 0.0, 0, 1)
-            previous_reviews += f"\n\n--- Iteration {iteration + 1} Review ---\n{review}"
-            
-            # Step 4: Improve code based on review
-            if iteration < max_iterations - 1:  # Don't improve on last iteration
-                print(f"🔧 Improving code based on review...")
+                return s3_key, presigned_url, rendered_code
+
+            print(f"Render failed (iter {iteration + 1}), reviewing...")
+            review = review_code(code, logs, previous_reviews)
+            previous_reviews += f"\n--- Iteration {iteration + 1} ---\n{review}"
+
+            if iteration < max_iterations - 1:
+                print("Improving code...")
                 raw_improved = improve_code(code, review)
-                improved_code = preprocess_code(raw_improved)
-                
-                if improved_code:
-                    code = improved_code
-                else:
-                    code = raw_improved
-                
-                # Cleanup failed attempt
+                improved = preprocess_code(raw_improved)
+                code = improved or raw_improved
+
                 if file_path and file_path.exists():
                     file_path.unlink()
-            else:
-                raise Exception(f"Failed to generate working animation after {max_iterations} iterations. Last error: {logs}")
-        
-        raise Exception(f"Failed to generate working animation after {max_iterations} iterations")
-        
+                    file_path = None
+
+        raise Exception(f"Failed after {max_iterations} iterations. Last error:\n{last_logs}")
+
     except Exception as e:
-        print(f"Error in generate_manim_animation: {str(e)}")
-        # Cleanup on error
+        print(f"generate_manim_animation error: {e}")
         if file_path and file_path.exists():
             file_path.unlink()
-        raise Exception(f"Animation generation failed: {str(e)}")
+        raise Exception(f"Animation generation failed: {e}")
