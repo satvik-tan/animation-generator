@@ -1,5 +1,22 @@
 # Deployment Guide
 
+## ⚠️ SECURITY WARNING
+
+**CRITICAL**: Never commit sensitive credentials to git!
+
+- ✅ Store all secrets in `.env` files (already in `.gitignore`)
+- ✅ Use environment variables for all sensitive data
+- ✅ Never hardcode DATABASE_URL, API keys, or passwords in code
+- ✅ For production, use AWS Secrets Manager or similar
+- ✅ Rotate credentials regularly
+- ❌ Never add credentials to `docker-compose.yml` or any tracked files
+
+If you've accidentally committed credentials:
+1. Rotate/invalidate the exposed credentials immediately
+2. Use `git-filter-repo` or similar tools to remove from history
+3. Force push the cleaned history (if possible)
+4. Consider the credentials permanently compromised
+
 ## ✅ S3 Setup Complete
 
 Your S3 integration is fully configured and tested with bucket: `satvik-manimation`

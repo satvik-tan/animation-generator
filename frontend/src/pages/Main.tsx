@@ -12,6 +12,7 @@ export default function Main() {
   const [videoUrl, setVideoUrl] = useState<string | undefined>(undefined);
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [chatKey, setChatKey] = useState(0); // Add key to force ChatBox remount
 
   const handleVideoGenerated = (url: string, _downloadUrl: string, jobId: string) => {
     setVideoUrl(url);
@@ -38,10 +39,11 @@ export default function Main() {
     setActiveJobId(null);
     setVideoUrl(undefined);
     setIsGenerating(false);
+    setChatKey((prev) => prev + 1); // Force ChatBox to reset
   };
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
+    <div className="flex h-screen bg-gradient-to-br from-background to-muted/20 text-foreground">
       {/* Sidebar */}
       <SideBar
         isOpen={isSidebarOpen}
@@ -54,18 +56,24 @@ export default function Main() {
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Header */}
-        <header className="border-b px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 py-4 flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-3">
             {!isSidebarOpen && (
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsSidebarOpen(true)}
+                className="hover:bg-muted"
               >
                 <PanelRightOpen className="h-5 w-5" />
               </Button>
             )}
-            <h1 className="text-lg font-bold">Manimation</h1>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">🎬</span>
+              <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+                Manimation
+              </h1>
+            </div>
           </div>
           <UserButton />
         </header>
@@ -73,8 +81,9 @@ export default function Main() {
         {/* Content area */}
         <div className="flex flex-1 overflow-hidden">
           {/* Left – Chat */}
-          <div className="w-[380px] min-w-[320px] border-r flex flex-col">
+          <div className="w-[380px] min-w-[320px] border-r flex flex-col bg-background">
             <ChatBox
+              key={chatKey}
               onVideoGenerated={handleVideoGenerated}
               onGenerationStart={handleGenerationStart}
               onGenerationError={handleGenerationError}
@@ -83,7 +92,7 @@ export default function Main() {
           </div>
 
           {/* Right – Video */}
-          <div className="flex-1 p-4 overflow-auto">
+          <div className="flex-1 p-6 overflow-auto bg-gradient-to-br from-background to-muted/10">
             <VideoPlayer videoUrl={videoUrl} isLoading={isGenerating} />
           </div>
         </div>
