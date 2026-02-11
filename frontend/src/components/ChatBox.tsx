@@ -127,7 +127,7 @@ export default function ChatBox({
                 </p>
                 <div className="text-xs text-muted-foreground space-y-1 pt-2">
                   <p className="italic">Example: "A circle morphing into a square"</p>
-                  <p className="italic">Example: "Show Pythagoras theorem with animation"</p>
+                  <p className="italic">Example: "Show Pythagorean theorem with animation"</p>
                 </div>
               </div>
             )}
