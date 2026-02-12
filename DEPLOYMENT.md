@@ -1,5 +1,37 @@
 # Deployment Guide
 
+## ⚠️ SECURITY WARNING
+
+**CRITICAL**: Never commit sensitive credentials to git!
+
+- ✅ Store all secrets in `.env` files (already in `.gitignore`)
+- ✅ Use environment variables for all sensitive data
+- ✅ Never hardcode DATABASE_URL, API keys, or passwords in code
+- ✅ For production, use AWS Secrets Manager or similar
+- ✅ Rotate credentials regularly
+- ❌ Never add credentials to `docker-compose.yml` or any tracked files
+
+### ⚠️ Important: Exposed Credentials in Git History
+
+**A database URI was previously committed to this repository's git history.**
+
+If you cloned or forked this repo before the fix:
+1. **Immediately rotate/invalidate the exposed credentials** (database password, connection strings)
+2. The exposed Neon database URI has been removed from current files but exists in git history
+3. Consider the old credentials permanently compromised
+4. Use fresh credentials going forward
+
+**For repository maintainers:**
+- Old credentials should be rotated on the database side
+- Consider using tools like `git-filter-repo` to clean history (requires force push)
+- Document this security incident for transparency
+
+If you've accidentally committed credentials:
+1. Rotate/invalidate the exposed credentials immediately
+2. Use `git-filter-repo` or similar tools to remove from history
+3. Force push the cleaned history (if possible)
+4. Consider the credentials permanently compromised
+
 ## ✅ S3 Setup Complete
 
 Your S3 integration is fully configured and tested with bucket: `satvik-manimation`
@@ -195,3 +227,76 @@ print('✅ Database OK')
 4. ⏳ Set up IAM role (remove access keys)
 5. ⏳ Frontend integration
 6. ⏳ Production monitoring setup
+
+## 🎨 Frontend Deployment
+
+### Local Development
+
+```bash
+cd frontend
+npm install
+npm run dev
+# Frontend will be available at: http://localhost:5173
+```
+
+### Environment Variables
+
+Create `frontend/.env.local`:
+```bash
+VITE_API_URL=http://localhost:8000
+VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+```
+
+### Production Build
+
+```bash
+cd frontend
+npm run build
+# Output will be in frontend/dist/
+```
+
+### Deploy Frontend
+
+**Option 1: Vercel**
+```bash
+# Install Vercel CLI
+npm i -g vercel
+
+# Deploy
+cd frontend
+vercel --prod
+```
+
+**Option 2: Netlify**
+```bash
+# Install Netlify CLI
+npm i -g netlify-cli
+
+# Deploy
+cd frontend
+netlify deploy --prod
+```
+
+**Option 3: S3 + CloudFront**
+```bash
+# Build
+cd frontend
+npm run build
+
+# Upload to S3
+aws s3 sync dist/ s3://your-frontend-bucket --delete
+
+# CloudFront invalidation
+aws cloudfront create-invalidation --distribution-id YOUR_DIST_ID --paths "/*"
+```
+
+### CORS Configuration
+
+Ensure your backend allows the frontend origin:
+```python
+# backend/app/main.py
+origins = [
+    "http://localhost:5173",  # Local dev
+    "https://your-frontend-domain.com",  # Production
+]
+```

@@ -57,49 +57,52 @@ export default function SideBar({
   if (!isOpen) return null;
 
   return (
-    <Card className="h-full w-64 border-r rounded-none flex flex-col">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">History</CardTitle>
+    <Card className="h-full w-64 border-r rounded-none flex flex-col shadow-lg bg-background">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 border-b bg-muted/20">
+        <CardTitle className="text-base font-semibold">📜 History</CardTitle>
         <Button
           variant="ghost"
           size="icon"
           onClick={onToggle}
-          className="h-7 w-7"
+          className="h-8 w-8"
         >
           <PanelLeftClose className="h-4 w-4" />
         </Button>
       </CardHeader>
 
-      <div className="px-4 pb-2">
+      <div className="px-3 py-3 border-b bg-muted/10">
         <Button
-          variant="outline"
+          variant="default"
           size="sm"
-          className="w-full gap-1 text-xs"
+          className="w-full gap-2 text-sm font-medium shadow-sm"
           onClick={onNewChat}
         >
-          <Plus className="h-3 w-3" />
+          <Plus className="h-4 w-4" />
           New Animation
         </Button>
       </div>
 
       <CardContent className="flex-1 p-0 overflow-hidden">
-        <ScrollArea className="h-full px-3 pb-3">
-          <div className="space-y-1">
+        <ScrollArea className="h-full px-3 py-3">
+          <div className="space-y-2">
             {jobs.length === 0 && (
-              <p className="text-xs text-muted-foreground text-center pt-4">
-                No animations yet
-              </p>
+              <div className="text-center py-8 space-y-2">
+                <div className="text-3xl">📝</div>
+                <p className="text-xs text-muted-foreground">
+                  No animations yet
+                </p>
+              </div>
             )}
             {jobs.map((job) => (
               <button
                 key={job.job_id}
                 onClick={() => onSelectJob(job)}
-                className={`w-full text-left p-2 rounded-md text-xs flex items-start gap-2 transition-colors hover:bg-accent ${
-                  activeJobId === job.job_id ? "bg-accent" : ""
+                className={`w-full text-left p-3 rounded-lg text-xs flex items-start gap-2 transition-all hover:bg-accent hover:shadow-sm ${
+                  activeJobId === job.job_id ? "bg-accent shadow-sm border border-border" : "border border-transparent"
                 }`}
               >
                 {STATUS_ICON[job.status]}
-                <span className="line-clamp-2 leading-tight">
+                <span className="line-clamp-2 leading-tight flex-1">
                   {job.prompt || "Untitled"}
                 </span>
               </button>

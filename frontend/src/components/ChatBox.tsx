@@ -104,25 +104,32 @@ export default function ChatBox({
   };
 
   return (
-    <Card className="flex flex-col h-full w-full rounded-none border-0 border-r">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg">
-          {activeJobId ? "Iterate on Animation" : "New Animation"}
+    <Card className="flex flex-col h-full w-full rounded-none border-0 border-r shadow-none">
+      <CardHeader className="pb-3 border-b bg-muted/20">
+        <CardTitle className="text-lg font-semibold">
+          {activeJobId ? "✏️ Iterate on Animation" : "✨ New Animation"}
         </CardTitle>
         {activeJobId && (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground leading-relaxed">
             Describe what to change — the AI will modify the current animation.
           </p>
         )}
       </CardHeader>
 
-      <CardContent className="flex-1 p-0 overflow-hidden">
-        <ScrollArea className="h-full px-4 py-2">
+      <CardContent className="flex-1 p-0 overflow-hidden bg-gradient-to-b from-background to-muted/5">
+        <ScrollArea className="h-full px-4 py-4">
           <div className="space-y-3">
             {messages.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center pt-8">
-                Describe the animation you want to create…
-              </p>
+              <div className="text-center pt-12 space-y-3">
+                <div className="text-5xl">🎨</div>
+                <p className="text-sm text-muted-foreground">
+                  Describe the animation you want to create…
+                </p>
+                <div className="text-xs text-muted-foreground space-y-1 pt-2">
+                  <p className="italic">Example: "A circle morphing into a square"</p>
+                  <p className="italic">Example: "Show Pythagorean theorem with animation"</p>
+                </div>
+              </div>
             )}
             {messages.map((msg) => (
               <div
@@ -132,10 +139,10 @@ export default function ChatBox({
                 }`}
               >
                 <div
-                  className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                  className={`max-w-[85%] rounded-xl px-4 py-2.5 text-sm shadow-sm ${
                     msg.sender === "user"
                       ? "bg-primary text-primary-foreground"
-                      : "bg-muted"
+                      : "bg-muted border border-border"
                   }`}
                 >
                   {msg.text}
@@ -147,7 +154,7 @@ export default function ChatBox({
         </ScrollArea>
       </CardContent>
 
-      <CardFooter className="p-3 border-t">
+      <CardFooter className="p-4 border-t bg-muted/10">
         <div className="flex w-full items-end gap-2">
           <Textarea
             placeholder={
@@ -163,18 +170,19 @@ export default function ChatBox({
                 handleSend();
               }
             }}
-            className="min-h-[56px] max-h-[120px] resize-none text-sm"
+            className="min-h-[56px] max-h-[120px] resize-none text-sm shadow-sm"
             disabled={isLoading}
           />
           <Button
             size="icon"
             onClick={handleSend}
             disabled={isLoading || !input.trim()}
+            className="h-[56px] w-[56px] shadow-sm"
           >
             {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
-              <Send className="h-4 w-4" />
+              <Send className="h-5 w-5" />
             )}
           </Button>
         </div>
