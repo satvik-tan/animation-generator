@@ -1,6 +1,8 @@
 import * as React from "react"
 
-import { cn } from "@/lib/utils"
+function cn(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(" ")
+}
 
 function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
   return (

@@ -1,0 +1,20 @@
+version: "3.9"
+
+services:
+  api:
+    build: ./backend
+    container_name: animation-api
+    environment:
+      - POSTGRES_URI=${POSTGRES_URI}
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7
+    container_name: redis
+    ports:
+      - "6379:6379"

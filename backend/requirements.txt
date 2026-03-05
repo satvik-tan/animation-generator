@@ -1,0 +1,29 @@
+fastapi
+uvicorn[standard]
+
+sqlalchemy
+psycopg2-binary
+
+redis
+python-dotenv
+
+pydantic
+pydantic-settings
+typing-extensions
+
+# AWS S3 integration
+boto3
+
+# LLM integration
+openai
+
+# Manim dependencies
+manim
+markdown-it-py
+
+clerk-backend-api
+alembic
+
+# JWT and HTTP
+pyjwt[crypto]
+requests
