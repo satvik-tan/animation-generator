@@ -6,10 +6,13 @@ import os
 
 app = FastAPI()
 
-# CORS configuration
+# CORS configuration — supports multiple origins via comma-separated FRONTEND_URL
+_raw_origins = os.getenv("FRONTEND_URL", "http://localhost:5173")
+_allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("FRONTEND_URL", "http://localhost:5173")],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

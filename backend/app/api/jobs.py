@@ -2,12 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from uuid import uuid4
+import json
 
 from app.schemas.jobs import CreateJobRequest, JobResponse
 from app.models.job import Job, Status
 from app.db.session import get_db
 from app.core.redis import redis_client
-from app.core.auth import verify_clerk_jwt
+from app.core.auth import get_current_user_id
 from app.core.s3_utils import generate_presigned_url
 
 router = APIRouter(prefix="/jobs")
@@ -15,7 +16,7 @@ router = APIRouter(prefix="/jobs")
 @router.post("", response_model=JobResponse)
 def create_job(
     req: CreateJobRequest,
-    user_id: str = Depends(verify_clerk_jwt),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     # If iterating, validate the parent job belongs to this user and is completed
@@ -41,7 +42,20 @@ def create_job(
     db.add(job)
     db.commit()
 
+    # Push job ID to queue
     redis_client.lpush("job_queue", str(job.id))
+    
+    # Store job metadata (custom API key, model provider) in Redis temporarily
+    # This avoids modifying the DB schema
+    job_metadata = {
+        "custom_api_key": req.custom_api_key,
+        "model_provider": req.model_provider or "gemini",
+    }
+    redis_client.setex(
+        f"job_metadata:{job.id}",
+        3600,  # Expire after 1 hour
+        json.dumps(job_metadata)
+    )
 
     return JobResponse(
         job_id=job.id,
@@ -56,7 +70,7 @@ def create_job(
 def get_job(
     job_id: str,
     db: Session = Depends(get_db),
-    user_id: str = Depends(verify_clerk_jwt),
+    user_id: str = Depends(get_current_user_id),
     refresh_url: bool = False,  # Optional query param to force URL refresh
 ):
     """
@@ -92,7 +106,7 @@ def get_job(
 @router.get("")
 def list_jobs(
     db: Session = Depends(get_db),
-    user_id: str = Depends(verify_clerk_jwt),
+    user_id: str = Depends(get_current_user_id),
 ):
     stmt = select(Job).where(Job.user_id == user_id).order_by(Job.created_at.desc())
     jobs = db.execute(stmt).scalars().all()
@@ -112,15 +126,45 @@ def list_jobs(
    
  
 @router.patch("/{job_id}", response_model=JobResponse)
-def update_job():
-        pass
+def cancel_job(
+    job_id: str,
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user_id),
+):
+    """Cancel a queued or processing job."""
+    stmt = select(Job).where(Job.id == job_id)
+    job = db.execute(stmt).scalar_one_or_none()
 
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if job.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    if job.status in (Status.COMPLETED, Status.FAILED, Status.CANCELLED):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot cancel a job with status '{job.status.value}'"
+        )
+
+    job.status = Status.CANCELLED
+    db.commit()
+
+    return JobResponse(
+        job_id=job.id,
+        status=job.status.value,
+        result_url=job.result_url,
+        error_message=job.error_message,
+        prompt=job.prompt,
+        parent_job_id=job.parent_job_id,
+        created_at=job.created_at,
+    )
 
 @router.post("/{job_id}/regenerate-url", response_model=JobResponse)
 def regenerate_video_url(
     job_id: str,
     db: Session = Depends(get_db),
-    user_id: str = Depends(verify_clerk_jwt),
+    user_id: str = Depends(get_current_user_id),
 ):
     """
     Regenerate a fresh pre-signed URL for a completed job's video.

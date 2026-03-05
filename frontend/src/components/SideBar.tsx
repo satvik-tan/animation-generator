@@ -24,6 +24,7 @@ interface SideBarProps {
 const STATUS_ICON: Record<string, React.ReactNode> = {
   completed: <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />,
   failed: <XCircle className="h-3 w-3 text-destructive shrink-0" />,
+  cancelled: <XCircle className="h-3 w-3 text-orange-500 shrink-0" />,
   processing: <Loader2 className="h-3 w-3 animate-spin text-primary shrink-0" />,
   queued: <Clock className="h-3 w-3 text-muted-foreground shrink-0" />,
 };

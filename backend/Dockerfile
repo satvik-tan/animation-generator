@@ -12,6 +12,7 @@ RUN apt-get update && \
     gcc g++ libpq-dev pkg-config \
     libcairo2-dev libpango1.0-dev ffmpeg \
     texlive-base texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended \
+    dvisvgm \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python deps

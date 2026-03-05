@@ -1,91 +1,108 @@
 import os
-from fastapi import HTTPException, Request
+import logging
+from datetime import datetime
+from fastapi import Depends, HTTPException, Request
+from sqlalchemy.orm import Session
 from clerk_backend_api import Clerk
-import jwt
-import requests
-from functools import lru_cache
+from clerk_backend_api.security.types import AuthenticateRequestOptions
+
+from app.db.session import get_db
+from app.models.job import User
+
+logger = logging.getLogger(__name__)
+
+# Lazy singleton — created once on first use
+_clerk_client: Clerk | None = None
 
 
-@lru_cache(maxsize=1)
-def get_clerk_jwks():
-    """Fetch Clerk JWKS for JWT verification (cached)"""
-    clerk_frontend_api = os.getenv("CLERK_FRONTEND_API", "clerk.animation-generator.com")
-    jwks_url = f"https://{clerk_frontend_api}/.well-known/jwks.json"
-    response = requests.get(jwks_url)
-    response.raise_for_status()
-    return response.json()
-
-
-def _is_dev_mode() -> bool:
-    return os.getenv("DEV_MODE", "false").lower() == "true"
-
-
-def _get_bearer_token(request: Request) -> str | None:
-    auth = request.headers.get("authorization") or request.headers.get("Authorization")
-    if not auth:
-        return None
-    parts = auth.split(" ", 1)
-    if len(parts) != 2 or parts[0].lower() != "bearer":
-        return None
-    return parts[1].strip() or None
-
-
-def verify_clerk_jwt(request: Request) -> str:
-    """Resolve the current user_id from the request.
-
-    Dev mode:
-      - Accept `x-user-id` (or default to `dev-user-123`).
-
-    Prod mode:
-      - Require `Authorization: Bearer <Clerk JWT>`.
-      - Verify token using Clerk JWKS.
-      - Return Clerk `sub` as user_id.
-    """
-
-    if _is_dev_mode():
-        return request.headers.get("x-user-id", "dev-user-123")
-
-    token = _get_bearer_token(request)
-    if not token:
-        raise HTTPException(status_code=401, detail="Unauthorized - Missing Bearer token")
-
-    secret_key = os.getenv("CLERK_SECRET_KEY")
-    if not secret_key:
-        raise HTTPException(status_code=500, detail="Server misconfigured - CLERK_SECRET_KEY missing")
-
-    try:
+def _get_clerk_client() -> Clerk:
+    global _clerk_client
+    if _clerk_client is None:
         secret_key = os.getenv("CLERK_SECRET_KEY")
         if not secret_key:
             raise HTTPException(status_code=500, detail="Server misconfigured - CLERK_SECRET_KEY missing")
-        
-        # Decode JWT using PyJWT with Clerk's JWKS
-        jwks = get_clerk_jwks()
-        unverified_header = jwt.get_unverified_header(token)
-        
-        # Find the signing key
-        signing_key = None
-        for key in jwks.get("keys", []):
-            if key.get("kid") == unverified_header.get("kid"):
-                signing_key = jwt.algorithms.RSAAlgorithm.from_jwk(key)
-                break
-        
-        if not signing_key:
-            raise HTTPException(status_code=401, detail="Unable to find signing key")
-        
-        # Verify and decode the token
-        payload = jwt.decode(
-            token,
-            signing_key,
-            algorithms=["RS256"],
-            options={"verify_exp": True}
+        _clerk_client = Clerk(bearer_auth=secret_key)
+    return _clerk_client
+
+
+def verify_clerk_jwt(request: Request) -> dict:
+    """Verifies the Clerk JWT and returns the raw payload."""
+    clerk = _get_clerk_client()
+
+    request_state = clerk.authenticate_request(
+        request,
+        AuthenticateRequestOptions(),
+    )
+
+    if not request_state.is_signed_in:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    return request_state.payload
+
+
+def get_current_user_id(
+    payload: dict = Depends(verify_clerk_jwt),
+    db: Session = Depends(get_db),
+) -> str:
+    """
+    Resolves the Clerk user, upserts them into the users table,
+    and returns their clerk_user_id (sub) as the user_id string.
+    """
+    clerk_user_id = payload["sub"]
+
+    user = db.query(User).filter(User.clerk_user_id == clerk_user_id).one_or_none()
+
+    if user is None:
+        # First time seeing this user — fetch details from Clerk Backend API
+        email, name = _fetch_clerk_user_details(clerk_user_id)
+        user = User(
+            id=clerk_user_id,
+            clerk_user_id=clerk_user_id,
+            name=name,
+            email=email,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
         )
-        
-        user_id = payload.get("sub")
-        if not user_id:
-            raise HTTPException(status_code=401, detail="Unauthorized - Invalid token (no sub)")
-        return str(user_id)
-    except HTTPException:
-        raise
+        db.add(user)
+    else:
+        # Refresh name/email periodically if you want, or just bump updated_at
+        user.updated_at = datetime.utcnow()
+
+    db.commit()
+    return clerk_user_id
+
+
+def _fetch_clerk_user_details(clerk_user_id: str) -> tuple[str, str]:
+    """
+    Calls Clerk Backend API to get the user's email and display name.
+    Returns (email, name).
+    """
+    try:
+        clerk = _get_clerk_client()
+        clerk_user = clerk.users.get(user_id=clerk_user_id)
+
+        # Primary email from the email_addresses list
+        email = ""
+        if clerk_user.email_addresses:
+            # Find the primary one, or fall back to the first
+            for ea in clerk_user.email_addresses:
+                if ea.id == clerk_user.primary_email_address_id:
+                    email = ea.email_address
+                    break
+            if not email:
+                email = clerk_user.email_addresses[0].email_address
+
+        # Build display name
+        parts = []
+        if clerk_user.first_name:
+            parts.append(clerk_user.first_name)
+        if clerk_user.last_name:
+            parts.append(clerk_user.last_name)
+        name = " ".join(parts) or clerk_user.username or clerk_user_id
+
+        return email, name
+
     except Exception as e:
-        # Avoid leaking internals; keep message short.
-        raise HTTPException(status_code=401, detail=f"Unauthorized - Invalid token: {e}")
+        logger.warning(f"Failed to fetch Clerk user {clerk_user_id}: {e}")
+        # Graceful fallback — don't block auth if Clerk API is temporarily down
+        return "", clerk_user_id

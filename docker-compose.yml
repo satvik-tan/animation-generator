@@ -4,6 +4,8 @@ services:
   api:
     build: ./backend
     container_name: animation-api
+    environment:
+      - POSTGRES_URI=${POSTGRES_URI}
     ports:
       - "8000:8000"
     env_file:
