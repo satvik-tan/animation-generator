@@ -1,15 +1,31 @@
 services:
+  caddy:
+    image: caddy:latest
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   api:
     build: ./backend
     container_name: animation-api
     restart: unless-stopped
     environment:
-      - POSTGRES_URI=${POSTGRES_URI}
       - WORKER_COUNT=${WORKER_COUNT:-3}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-    ports:
-      - "80:8000"
     env_file:
       - ./backend/.env
     depends_on:
@@ -49,3 +65,5 @@ services:
 
 volumes:
   redis_data:
+  caddy_data:
+  caddy_config:

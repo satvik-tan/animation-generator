@@ -34,12 +34,13 @@ docker compose up -d
 # ── Wait for health check ──
 echo "⏳ Waiting for API to be healthy..."
 for i in $(seq 1 30); do
-    if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+    if curl -sf http://localhost/health > /dev/null 2>&1; then
         echo "✅ API is healthy!"
         break
     fi
     if [ "$i" -eq 30 ]; then
         echo "❌ API failed to start within 30s"
+        echo "   Checked endpoint: http://localhost/health"
         echo "   Check logs: docker compose logs -f api"
         exit 1
     fi
