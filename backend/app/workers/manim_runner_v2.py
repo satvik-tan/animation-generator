@@ -1,5 +1,6 @@
 from openai import OpenAI
 import os
+import logging
 from dotenv import load_dotenv
 from pathlib import Path
 import uuid
@@ -12,6 +13,8 @@ import time
 import boto3
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 # -- LLM Clients --
 gemini_client = OpenAI(
@@ -342,24 +345,32 @@ def generate_manim_animation(
 
     try:
         _check_cancelled()
-        print(f"Generating code for: {prompt} (using {model_provider})")
+        logger.info(f"🤖 LLM code generation START | prompt='{prompt[:80]}...' | model={model_provider}")
+        llm_start = time.time()
         raw = generate_code(prompt, previous_code=previous_code, model_provider=model_provider, custom_api_key=custom_api_key)
         code = preprocess_code(raw) or raw
+        logger.info(f"🤖 LLM code generation DONE | {time.time() - llm_start:.1f}s | code_len={len(code)}")
 
         for iteration in range(max_iterations):
             _check_cancelled()
-            print(f"\n=== Iteration {iteration + 1}/{max_iterations} ===")
+            logger.info(f"🔁 === Render attempt {iteration + 1}/{max_iterations} ===")
 
             file_path = push_manim_code(code)
+            render_start = time.time()
             success, logs, video_path = run_manim(file_path, quality="-ql", cancel_event=cancel_event)
+            render_elapsed = time.time() - render_start
             last_logs = logs
 
             if success:
                 _check_cancelled()
-                print("Re-rendering at 720p30 for delivery...")
+                logger.info(f"✅ Low-quality render SUCCESS in {render_elapsed:.1f}s — re-rendering at 720p30...")
+                hq_start = time.time()
                 success_hq, _, video_path_hq = run_manim(file_path, quality="-qm", cancel_event=cancel_event)
                 if success_hq:
                     video_path = video_path_hq
+                    logger.info(f"✅ HQ render SUCCESS in {time.time() - hq_start:.1f}s")
+                else:
+                    logger.warning(f"⚠️ HQ render failed, using LQ version")
 
                 bucket = os.getenv("AWS_S3_BUCKET")
                 if not bucket:
@@ -368,8 +379,9 @@ def generate_manim_animation(
                 ts = int(time.time())
                 uid = user_id or "anonymous"
                 s3_key = f"videos/{uid}/{uid}_video_{ts}.mp4"
+                upload_start = time.time()
                 presigned_url = upload_to_s3(video_path, bucket, s3_key)
-                print(f"Uploaded to S3: {s3_key}")
+                logger.info(f"☁️ S3 upload DONE in {time.time() - upload_start:.1f}s | key={s3_key}")
 
                 # Read back the sanitized code that was actually rendered
                 rendered_code = file_path.read_text() if file_path.exists() else code
@@ -378,25 +390,25 @@ def generate_manim_animation(
                     file_path.unlink()
                 return s3_key, presigned_url, rendered_code
 
-            print(f"Render failed (iter {iteration + 1}), reviewing...")
+            logger.warning(f"❌ Render FAILED (attempt {iteration + 1}) in {render_elapsed:.1f}s — sending to LLM for review...")
             review = review_code(code, logs, previous_reviews, model_provider=model_provider, custom_api_key=custom_api_key)
             previous_reviews += f"\n--- Iteration {iteration + 1} ---\n{review}"
 
             if iteration < max_iterations - 1:
                 _check_cancelled()
-                print("Improving code...")
+                logger.info("🔧 LLM improving code...")
                 raw_improved = improve_code(code, review, model_provider=model_provider, custom_api_key=custom_api_key)
                 improved = preprocess_code(raw_improved)
 
                 # Better handling: ensure we have valid Python code
                 if improved and improved.strip():
                     code = improved
-                    print(f"✅ Using improved code ({len(improved)} chars)")
+                    logger.info(f"✅ Using improved code ({len(improved)} chars)")
                 elif raw_improved and raw_improved.strip():
                     code = raw_improved
-                    print(f"⚠️ Using raw improved code ({len(raw_improved)} chars)")
+                    logger.warning(f"⚠️ Using raw improved code ({len(raw_improved)} chars)")
                 else:
-                    print("❌ AI returned empty response, keeping current code")
+                    logger.error("❌ AI returned empty response, keeping current code")
                     # Keep existing code, will likely fail again but prevents crash
 
                 if file_path and file_path.exists():
@@ -410,7 +422,7 @@ def generate_manim_animation(
             file_path.unlink()
         raise
     except Exception as e:
-        print(f"generate_manim_animation error: {e}")
+        logger.error(f"💥 generate_manim_animation error: {e}")
         if file_path and file_path.exists():
             file_path.unlink()
         raise Exception(f"Animation generation failed: {e}")

@@ -4,6 +4,9 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
+# Number of worker processes (override at runtime via -e WORKER_COUNT=N)
+ENV WORKER_COUNT=5
+
 WORKDIR /app
 
 # System deps (psycopg2, Manim, FFmpeg, LaTeX, Cairo, Pango)
@@ -12,7 +15,7 @@ RUN apt-get update && \
     gcc g++ libpq-dev pkg-config \
     libcairo2-dev libpango1.0-dev ffmpeg \
     texlive-base texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended \
-    dvisvgm \
+    dvisvgm curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python deps
