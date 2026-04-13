@@ -10,7 +10,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Loader2, X, Key, Sparkles } from "lucide-react";
+import { Send, Loader2, X, Key } from "lucide-react";
 import { createJob, pollJob, cancelJob } from "@/lib/api";
 import {
   canCreateJob,
@@ -36,7 +36,6 @@ interface ChatBoxProps {
   onVideoGenerated: (videoUrl: string, downloadUrl: string, jobId: string, createdAt: string) => void;
   onGenerationStart: () => void;
   onGenerationError: (errorMessage: string) => void;
-  /** The currently-displayed job (so we can iterate on it) */
   activeJobId?: string | null;
 }
 
@@ -58,7 +57,6 @@ export default function ChatBox({
   const [remainingJobs, setRemainingJobs] = useState(getRemainingJobs());
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll on new messages
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -74,7 +72,6 @@ export default function ChatBox({
     const prompt = input.trim();
     if (!prompt || isLoading) return;
 
-    // Check if user can create job
     const { canCreate, reason } = canCreateJob();
     if (!canCreate) {
       addMessage(reason || "Cannot create job", "bot");
@@ -90,14 +87,9 @@ export default function ChatBox({
 
     try {
       const token = await getToken();
-
-      // If we have an active job, this is an iteration
       const parentId = activeJobId || undefined;
-
-      // Prepare request with custom API key if using Gemini
       const customKey = selectedModel === 'gemini' ? getCustomGeminiKey() : null;
 
-      // 1. Create job
       const created = await createJob(
         { 
           prompt, 
@@ -110,39 +102,30 @@ export default function ChatBox({
 
       setCurrentJobId(created.job_id);
 
-      // Increment count only for Gemini without custom key
       if (selectedModel === 'gemini' && !hasCustomGeminiKey()) {
         incrementJobCount();
         setRemainingJobs(getRemainingJobs());
       }
 
-      addMessage(
-        parentId
-          ? "✏️ Iterating on your animation…"
-          : "🎬 Generating your animation…",
-        "bot",
-        created.job_id
-      );
+      const generatingMsg = parentId ? "Refining your animation…" : "Generating animation…";
+      addMessage(generatingMsg, "bot", created.job_id);
 
-      // 2. Poll until done
-      const finished = await pollJob(created.job_id, getToken, 2000, (_update) => {
-        // Optional: could update a progress indicator here
-      });
+      const finished = await pollJob(created.job_id, getToken, 2000, (_update) => {});
 
       if (finished.status === "completed" && finished.result_url) {
-        addMessage("✅ Animation ready!", "bot", finished.job_id);
+        addMessage("Animation ready", "bot", finished.job_id);
         onVideoGenerated(finished.result_url, finished.result_url, finished.job_id, finished.created_at);
       } else if (finished.status === "cancelled") {
-        addMessage("🚫 Generation cancelled.", "bot", finished.job_id);
+        addMessage("Generation cancelled", "bot", finished.job_id);
         onGenerationError("Job was cancelled");
       } else {
         const err = finished.error_message || "Unknown error";
-        addMessage(`❌ Generation failed: ${err}`, "bot", finished.job_id);
+        addMessage(`Generation failed: ${err}`, "bot", finished.job_id);
         onGenerationError(err);
       }
     } catch (err: any) {
       const msg = err.message || "Something went wrong";
-      addMessage(`❌ Error: ${msg}`, "bot");
+      addMessage(`Error: ${msg}`, "bot");
       onGenerationError(msg);
     } finally {
       setIsLoading(false);
@@ -152,19 +135,17 @@ export default function ChatBox({
 
   const handleCancel = async () => {
     if (!currentJobId || !isLoading || isCancelCooldown) return;
-
     setIsCancelCooldown(true);
     
     try {
       const token = await getToken();
       await cancelJob(currentJobId, token);
-      addMessage("🚫 Cancelling generation…", "bot", currentJobId);
+      addMessage("Cancelling…", "bot", currentJobId);
     } catch (err: any) {
       console.error("Failed to cancel job:", err);
-      addMessage(`⚠️ Cancel request failed: ${err.message}`, "bot");
+      addMessage(`Cancel failed: ${err.message}`, "bot");
     }
 
-    // 5 second cooldown
     setTimeout(() => {
       setIsCancelCooldown(false);
     }, 5000);
@@ -180,7 +161,7 @@ export default function ChatBox({
     if (apiKeyInput.trim()) {
       setCustomGeminiKey(apiKeyInput.trim());
       setShowApiKeyInput(false);
-      addMessage("✅ API key saved! You can now create unlimited animations with Gemini.", "bot");
+      addMessage("API key saved. You can now create unlimited animations.", "bot");
     }
   };
 
@@ -189,18 +170,18 @@ export default function ChatBox({
     setApiKeyInput("");
     setShowApiKeyInput(false);
     setRemainingJobs(getRemainingJobs());
-    addMessage("🔑 API key cleared. Back to free tier (3 animations).", "bot");
+    addMessage("API key cleared. Back to free tier.", "bot");
   };
 
   return (
-    <Card className="flex flex-col h-full w-full rounded-none border-0 border-r shadow-none">
-      <CardHeader className="pb-3 border-b bg-muted/20 space-y-3">
-        <CardTitle className="text-lg font-semibold">
-          {activeJobId ? "✏️ Iterate on Animation" : "✨ New Animation"}
+    <Card className="flex flex-col h-full w-full rounded-none border-0 border-r border-gray-200 shadow-none bg-white">
+      <CardHeader className="pb-3 border-b border-gray-200 space-y-3 bg-gray-50">
+        <CardTitle className="text-base font-semibold text-gray-900">
+          {activeJobId ? "Refine Animation" : "New Animation"}
         </CardTitle>
         {activeJobId && (
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Describe what to change — the AI will modify the current animation.
+          <p className="text-xs text-gray-600 leading-relaxed">
+            Describe what to change. The AI will modify the animation.
           </p>
         )}
 
@@ -210,20 +191,18 @@ export default function ChatBox({
             size="sm"
             variant={selectedModel === 'gemini' ? 'default' : 'outline'}
             onClick={() => handleModelChange('gemini')}
-            className="flex-1 gap-1.5"
+            className="flex-1 h-8 text-xs"
             disabled={isLoading}
           >
-            <Sparkles className="h-3.5 w-3.5" />
             Gemini
           </Button>
           <Button
             size="sm"
             variant={selectedModel === 'groq' ? 'default' : 'outline'}
             onClick={() => handleModelChange('groq')}
-            className="flex-1 gap-1.5"
+            className="flex-1 h-8 text-xs"
             disabled={isLoading}
           >
-            <Sparkles className="h-3.5 w-3.5" />
             Groq
           </Button>
         </div>
@@ -232,37 +211,37 @@ export default function ChatBox({
         {selectedModel === 'gemini' && (
           <div className="flex items-center justify-between text-xs">
             {hasCustomGeminiKey() ? (
-              <span className="text-green-600 dark:text-green-400 flex items-center gap-1">
+              <span className="text-green-700 flex items-center gap-1">
                 <Key className="h-3 w-3" />
                 Using your API key
               </span>
             ) : (
-              <span className="text-muted-foreground">
-                {remainingJobs} free animations left
+              <span className="text-gray-600">
+                {remainingJobs} free requests left
               </span>
             )}
             <Button
               size="sm"
               variant="ghost"
               onClick={() => setShowApiKeyInput(!showApiKeyInput)}
-              className="h-6 px-2 text-xs"
+              className="h-6 px-2 text-xs hover:bg-gray-200"
             >
               <Key className="h-3 w-3 mr-1" />
-              {hasCustomGeminiKey() ? 'Manage Key' : 'Add Key'}
+              {hasCustomGeminiKey() ? 'Manage' : 'Add Key'}
             </Button>
           </div>
         )}
 
         {/* API Key Input */}
         {showApiKeyInput && selectedModel === 'gemini' && (
-          <div className="space-y-2 p-3 bg-muted/50 rounded-lg border">
-            <label className="text-xs font-medium">Gemini API Key</label>
+          <div className="space-y-2 p-3 bg-gray-100 rounded-lg border border-gray-300">
+            <label className="text-xs font-medium text-gray-900">Gemini API Key</label>
             <input
               type="password"
               value={apiKeyInput}
               onChange={(e) => setApiKeyInput(e.target.value)}
               placeholder="Enter your Gemini API key..."
-              className="w-full px-2 py-1.5 text-xs rounded border bg-background"
+              className="w-full px-2 py-1.5 text-xs rounded border border-gray-300 bg-white"
               disabled={isLoading}
             />
             <div className="flex gap-2">
@@ -294,13 +273,13 @@ export default function ChatBox({
                 Cancel
               </Button>
             </div>
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-[10px] text-gray-600">
               Get your free API key at{' '}
               <a
                 href="https://aistudio.google.com/app/apikey"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="underline hover:text-primary"
+                className="underline hover:text-gray-900"
               >
                 Google AI Studio
               </a>
@@ -309,16 +288,15 @@ export default function ChatBox({
         )}
       </CardHeader>
 
-      <CardContent className="flex-1 p-0 overflow-hidden bg-gradient-to-b from-background to-muted/5">
+      <CardContent className="flex-1 p-0 overflow-hidden bg-white">
         <ScrollArea className="h-full px-4 py-4">
           <div className="space-y-3">
             {messages.length === 0 && (
               <div className="text-center pt-12 space-y-3">
-                <div className="text-5xl">🎨</div>
-                <p className="text-sm text-muted-foreground">
-                  Describe the animation you want to create…
+                <p className="text-sm text-gray-600">
+                  Describe the animation you want to create
                 </p>
-                <div className="text-xs text-muted-foreground space-y-1 pt-2">
+                <div className="text-xs text-gray-500 space-y-2 pt-4">
                   <p className="italic">Example: "A circle morphing into a square"</p>
                   <p className="italic">Example: "Show Pythagorean theorem with animation"</p>
                 </div>
@@ -332,10 +310,10 @@ export default function ChatBox({
                 }`}
               >
                 <div
-                  className={`max-w-[85%] rounded-xl px-4 py-2.5 text-sm shadow-sm ${
+                  className={`max-w-[85%] rounded px-3 py-2 text-sm ${
                     msg.sender === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted border border-border"
+                      ? "bg-gray-900 text-white"
+                      : "bg-gray-50 border border-gray-200 text-gray-900"
                   }`}
                 >
                   {msg.text}
@@ -347,13 +325,13 @@ export default function ChatBox({
         </ScrollArea>
       </CardContent>
 
-      <CardFooter className="p-4 border-t bg-muted/10">
+      <CardFooter className="p-4 border-t border-gray-200 bg-white">
         <div className="flex w-full items-end gap-2">
           <Textarea
             placeholder={
               activeJobId
                 ? "Describe what to change…"
-                : "Describe the animation you want…"
+                : "Describe the animation…"
             }
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -363,7 +341,7 @@ export default function ChatBox({
                 handleSend();
               }
             }}
-            className="min-h-[56px] max-h-[120px] resize-none text-sm shadow-sm"
+            className="min-h-[56px] max-h-[120px] resize-none text-sm border-gray-300"
             disabled={isLoading}
           />
           {isLoading && currentJobId ? (
@@ -372,7 +350,7 @@ export default function ChatBox({
               variant="destructive"
               onClick={handleCancel}
               disabled={isCancelCooldown}
-              className="h-[56px] w-[56px] shadow-sm cursor-pointer"
+              className="h-[56px] w-[56px]"
             >
               <X className="h-5 w-5" />
             </Button>
@@ -381,7 +359,7 @@ export default function ChatBox({
               size="icon"
               onClick={handleSend}
               disabled={isLoading || !input.trim()}
-              className="h-[56px] w-[56px] shadow-sm"
+              className="h-[56px] w-[56px]"
             >
               {isLoading ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
