@@ -24,26 +24,22 @@ export default function VideoPlayer({
   const [showExpiredWarning, setShowExpiredWarning] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Sync prop changes to state — clear any previous error when a new URL arrives
   useEffect(() => {
     setCurrentVideoUrl(videoUrl);
     setShowExpiredWarning(false);
   }, [videoUrl]);
 
-  // Animate progress bar when loading
   useEffect(() => {
     if (isLoading) {
       setProgress(0);
       const interval = setInterval(() => {
         setProgress((prev) => {
-          // Slow progress that approaches 90% but never reaches 100%
           const increment = (90 - prev) * 0.05;
           return Math.min(prev + increment, 90);
         });
       }, 100);
       return () => clearInterval(interval);
     } else if (currentVideoUrl) {
-      // Instantly fill to 100% when video arrives
       setProgress(100);
     }
   }, [isLoading, currentVideoUrl]);
@@ -57,14 +53,10 @@ export default function VideoPlayer({
       if (updated.result_url) {
         setCurrentVideoUrl(updated.result_url);
         setShowExpiredWarning(false);
-        // Force the video element to reload with the new src
-        // (browser may have cached the failed/expired request)
         setTimeout(() => {
           if (videoRef.current) {
             videoRef.current.load();
-            videoRef.current.play().catch(() => {
-              // Autoplay may be blocked by browser — user can press play manually
-            });
+            videoRef.current.play().catch(() => {});
           }
         }, 50);
       }
@@ -77,34 +69,34 @@ export default function VideoPlayer({
   };
 
   return (
-    <Card className="w-full h-full flex flex-col shadow-sm overflow-hidden">
-      <CardHeader className="pb-3 border-b bg-muted/20 shrink-0">
-        <CardTitle className="flex justify-between items-center text-lg">
-          <span className="font-semibold">Animation Preview</span>
+    <Card className="w-full h-full flex flex-col shadow-none overflow-hidden border border-gray-200 bg-white rounded-lg">
+      <CardHeader className="pb-3 border-b border-gray-200 shrink-0 bg-gray-50">
+        <CardTitle className="flex justify-between items-center text-base font-semibold text-gray-900">
+          <span>Animation Preview</span>
           {isLoading && (
-            <RefreshCw className="h-4 w-4 animate-spin text-primary" />
+            <RefreshCw className="h-4 w-4 animate-spin text-gray-600" />
           )}
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="flex-1 min-h-0 flex flex-col items-center justify-center p-6 overflow-hidden">
+      <CardContent className="flex-1 min-h-0 flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden">
         {showExpiredWarning && (
-          <div className="w-full mb-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg flex items-center gap-2 text-sm shrink-0">
-            <AlertCircle className="h-4 w-4 text-yellow-600 shrink-0" />
-            <span className="text-yellow-700 dark:text-yellow-300 flex-1">
-              Video URL may have expired. Click refresh to get a new link.
+          <div className="w-full mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded flex items-center gap-2 text-sm shrink-0">
+            <AlertCircle className="h-4 w-4 text-yellow-700 shrink-0" />
+            <span className="text-yellow-900 flex-1 text-xs sm:text-sm">
+              Video URL expired. Click refresh for a new link.
             </span>
             <Button
               size="sm"
               variant="outline"
               onClick={handleRefreshUrl}
               disabled={isRefreshing}
-              className="shrink-0"
+              className="shrink-0 h-7 text-xs"
             >
               {isRefreshing ? (
                 <>
                   <RefreshCw className="h-3 w-3 animate-spin mr-1" />
-                  Refreshing...
+                  Refreshing
                 </>
               ) : (
                 <>
@@ -120,7 +112,7 @@ export default function VideoPlayer({
           <div className="flex-1 min-h-0 w-full flex items-center justify-center overflow-hidden">
             <video
               ref={videoRef}
-              className="w-full h-full rounded-lg shadow-2xl border border-border object-contain"
+              className="w-full h-full rounded border border-gray-200 object-contain bg-black"
               controls
               autoPlay
               loop
@@ -133,29 +125,28 @@ export default function VideoPlayer({
             </video>
           </div>
         ) : (
-          <div className="w-full flex-1 flex flex-col items-center justify-center bg-gradient-to-br from-muted/30 to-muted/10 rounded-lg border-2 border-dashed border-border p-8">
+          <div className="w-full flex-1 flex flex-col items-center justify-center bg-gray-50 rounded border border-gray-200 p-6">
             <div className="text-center space-y-4 max-w-md">
-              <div className="text-4xl mb-4">🎬</div>
-              <p className="text-muted-foreground text-base font-medium">
+              <p className="text-gray-700 text-sm sm:text-base font-medium">
                 {isLoading
-                  ? "Generating your animation…"
+                  ? "Generating animation…"
                   : "Your animation will appear here"}
               </p>
               {isLoading && (
                 <div className="w-full max-w-xs mx-auto space-y-2">
-                  <div className="h-2 w-full bg-muted overflow-hidden rounded-full">
+                  <div className="h-2 w-full bg-gray-200 overflow-hidden rounded-full">
                     <div 
-                      className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 transition-all duration-300 ease-out"
+                      className="h-full bg-gray-900 transition-all duration-300 ease-out"
                       style={{ width: `${progress}%` }}
                     />
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    This may take 30-60 seconds…
+                  <p className="text-xs text-gray-600">
+                    This may take 30-60 seconds
                   </p>
                 </div>
               )}
               {!isLoading && (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs sm:text-sm text-gray-600">
                   Describe an animation in the chat to get started
                 </p>
               )}
@@ -165,11 +156,11 @@ export default function VideoPlayer({
       </CardContent>
 
       {currentVideoUrl && (
-        <div className="border-t px-4 py-3 flex gap-2 bg-muted/10">
+        <div className="border-t border-gray-200 px-4 py-3 flex gap-2 bg-gray-50">
           <Button
             variant="default"
             size="sm"
-            className="gap-1.5 text-xs"
+            className="gap-1.5 text-xs h-8"
             onClick={async () => {
               try {
                 const response = await fetch(currentVideoUrl);
@@ -184,7 +175,6 @@ export default function VideoPlayer({
                 window.URL.revokeObjectURL(url);
               } catch (err) {
                 console.error('Download failed:', err);
-                // Fallback to direct link
                 const a = document.createElement('a');
                 a.href = currentVideoUrl;
                 a.download = `animation-${jobId || 'video'}.mp4`;
@@ -193,22 +183,22 @@ export default function VideoPlayer({
             }}
           >
             <Download className="h-3.5 w-3.5" />
-            Download Video
+            <span className="hidden sm:inline">Download</span>
           </Button>
           {showExpiredWarning && (
             <Button
               variant="outline"
               size="sm"
-              className="gap-1.5 text-xs ml-auto"
+              className="gap-1.5 text-xs ml-auto h-8"
               onClick={handleRefreshUrl}
               disabled={isRefreshing}
             >
               {isRefreshing ? (
-                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                <RefreshCw className="h-3 w-3 animate-spin" />
               ) : (
-                <RefreshCw className="h-3.5 w-3.5" />
+                <RefreshCw className="h-3 w-3" />
               )}
-              Refresh Link
+              <span className="hidden sm:inline">Refresh Link</span>
             </Button>
           )}
         </div>
