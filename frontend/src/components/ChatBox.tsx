@@ -10,7 +10,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Loader2, X, Key } from "lucide-react";
+import { Send, Loader as Loader2, X, Key } from "lucide-react";
 import { createJob, pollJob, cancelJob } from "@/lib/api";
 import {
   canCreateJob,
@@ -178,74 +178,71 @@ export default function ChatBox({
   };
 
   return (
-    <Card className="flex flex-col h-full w-full rounded-none border-0 border-r border-border shadow-none bg-card">
-      <CardHeader className="pb-3 border-b border-border space-y-3 bg-card">
-        <CardTitle className="text-base font-semibold text-foreground">
-          {activeJobId ? "Refine Animation" : "New Animation"}
+    <Card className="flex flex-col h-full w-full rounded-none border-0 shadow-none bg-card">
+      <CardHeader className="pb-4 border-b-2 border-foreground space-y-4 bg-card">
+        <CardTitle className="text-sm font-black font-display tracking-wide">
+          {activeJobId ? "REFINE ANIMATION" : "NEW ANIMATION"}
         </CardTitle>
         {activeJobId && (
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Describe what to change. The AI will modify the animation.
+          <p className="text-xs text-muted-foreground leading-relaxed font-mono">
+            → Describe what to change. The AI will modify the animation.
           </p>
         )}
 
-        {/* Model Selector */}
         <div className="flex items-center gap-2">
           <Button
             size="sm"
             variant={selectedModel === 'gemini' ? 'default' : 'outline'}
             onClick={() => handleModelChange('gemini')}
-            className="flex-1 h-8 text-xs"
+            className="flex-1 h-8 text-xs font-bold border-2"
             disabled={isLoading}
           >
-            Gemini
+            GEMINI
           </Button>
           <Button
             size="sm"
             variant={selectedModel === 'groq' ? 'default' : 'outline'}
             onClick={() => handleModelChange('groq')}
-            className="flex-1 h-8 text-xs"
+            className="flex-1 h-8 text-xs font-bold border-2"
             disabled={isLoading}
           >
-            Groq
+            GROQ
           </Button>
         </div>
 
-        {/* Limit Info & API Key Button */}
         {selectedModel === 'gemini' && (
           <div className="flex items-center justify-between text-xs">
             {hasCustomGeminiKey() ? (
-              <span className="text-green-400 flex items-center gap-1">
+              <span className="text-primary flex items-center gap-1 font-bold font-mono">
                 <Key className="h-3 w-3" />
-                Using your API key
+                USING YOUR API KEY
               </span>
             ) : (
-              <span className="text-muted-foreground">
-                {remainingJobs} free requests left
+              <span className="text-muted-foreground font-mono">
+                → {remainingJobs} FREE REQUESTS LEFT
               </span>
             )}
             <Button
               size="sm"
               variant="ghost"
               onClick={() => setShowApiKeyInput(!showApiKeyInput)}
-              className="h-6 px-2 text-xs hover:bg-accent"
+              className="h-6 px-2 text-xs hover:bg-primary/20 font-bold"
             >
               <Key className="h-3 w-3 mr-1" />
-              {hasCustomGeminiKey() ? 'Manage' : 'Add Key'}
+              {hasCustomGeminiKey() ? 'MANAGE' : 'ADD KEY'}
             </Button>
           </div>
         )}
 
-        {/* API Key Input */}
         {showApiKeyInput && selectedModel === 'gemini' && (
-          <div className="space-y-2 p-3 bg-muted rounded-lg border border-border">
-            <label className="text-xs font-medium text-foreground">Gemini API Key</label>
+          <div className="space-y-2 p-3 bg-background border-2 border-foreground">
+            <label className="text-xs font-bold font-display">GEMINI API KEY</label>
             <input
               type="password"
               value={apiKeyInput}
               onChange={(e) => setApiKeyInput(e.target.value)}
               placeholder="Enter your Gemini API key..."
-              className="w-full px-2 py-1.5 text-xs rounded border border-input bg-background text-foreground placeholder:text-muted-foreground"
+              className="w-full px-2 py-2 text-xs border-2 border-foreground bg-card text-foreground placeholder:text-muted-foreground"
               disabled={isLoading}
             />
             <div className="flex gap-2">
@@ -253,9 +250,9 @@ export default function ChatBox({
                 size="sm"
                 onClick={handleSaveApiKey}
                 disabled={!apiKeyInput.trim() || isLoading}
-                className="flex-1 h-7 text-xs"
+                className="flex-1 h-7 text-xs font-bold border-2 border-primary"
               >
-                Save
+                SAVE
               </Button>
               {hasCustomGeminiKey() && (
                 <Button
@@ -263,21 +260,21 @@ export default function ChatBox({
                   variant="destructive"
                   onClick={handleClearApiKey}
                   disabled={isLoading}
-                  className="h-7 text-xs"
+                  className="h-7 text-xs font-bold border-2"
                 >
-                  Clear
+                  CLEAR
                 </Button>
               )}
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => setShowApiKeyInput(false)}
-                className="h-7 text-xs"
+                className="h-7 text-xs font-bold border-2"
               >
-                Cancel
+                CANCEL
               </Button>
             </div>
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-[10px] text-muted-foreground font-mono">
               Get your free API key at{' '}
               <a
                 href="https://aistudio.google.com/app/apikey"
@@ -297,12 +294,12 @@ export default function ChatBox({
           <div className="space-y-3">
             {messages.length === 0 && (
               <div className="text-center pt-12 space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  Describe the animation you want to create
+                <p className="text-sm text-muted-foreground font-mono">
+                  → DESCRIBE THE ANIMATION YOU WANT TO CREATE
                 </p>
-                <div className="text-xs text-muted-foreground space-y-2 pt-4">
-                  <p className="italic">Example: "A circle morphing into a square"</p>
-                  <p className="italic">Example: "Show Pythagorean theorem with animation"</p>
+                <div className="text-xs text-muted-foreground space-y-2 pt-4 font-mono">
+                  <p>Example: "A circle morphing into a square"</p>
+                  <p>Example: "Show Pythagorean theorem with animation"</p>
                 </div>
               </div>
             )}
@@ -314,10 +311,10 @@ export default function ChatBox({
                 }`}
               >
                 <div
-                  className={`max-w-[85%] rounded px-3 py-2 text-sm ${
+                  className={`max-w-[85%] px-3 py-2 text-sm border-2 ${
                     msg.sender === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted border border-border text-foreground"
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background border-foreground text-foreground"
                   }`}
                 >
                   {msg.text}
@@ -329,7 +326,7 @@ export default function ChatBox({
         </ScrollArea>
       </CardContent>
 
-      <CardFooter className="p-4 border-t border-border bg-card">
+      <CardFooter className="p-4 border-t-2 border-foreground bg-card">
         <div className="flex w-full items-end gap-2">
           <Textarea
             placeholder={
@@ -345,7 +342,7 @@ export default function ChatBox({
                 handleSend();
               }
             }}
-            className="min-h-[56px] max-h-[120px] resize-none text-sm border-input"
+            className="min-h-[56px] max-h-[120px] resize-none text-sm border-2 border-foreground"
             disabled={isLoading}
           />
           {isLoading && currentJobId ? (
@@ -354,7 +351,7 @@ export default function ChatBox({
               variant="destructive"
               onClick={handleCancel}
               disabled={isCancelCooldown}
-              className="h-[56px] w-[56px]"
+              className="h-[56px] w-[56px] border-2"
             >
               <X className="h-5 w-5" />
             </Button>
@@ -363,7 +360,7 @@ export default function ChatBox({
               size="icon"
               onClick={handleSend}
               disabled={isLoading || !input.trim()}
-              className="h-[56px] w-[56px]"
+              className="h-[56px] w-[56px] border-2 border-primary font-bold"
             >
               {isLoading ? (
                 <Loader2 className="h-5 w-5 animate-spin" />

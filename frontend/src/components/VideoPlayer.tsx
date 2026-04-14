@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, RefreshCw, AlertCircle } from "lucide-react";
+import { Download, RefreshCw, CircleAlert as AlertCircle } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { regenerateVideoUrl } from "@/lib/api";
@@ -69,21 +69,21 @@ export default function VideoPlayer({
   };
 
   return (
-    <Card className="w-full h-full flex flex-col shadow-none overflow-hidden border border-border bg-card rounded-lg">
-      <CardHeader className="pb-3 border-b border-border shrink-0 bg-card">
-        <CardTitle className="flex justify-between items-center text-base font-semibold text-foreground">
-          <span>Animation Preview</span>
+    <Card className="w-full h-full flex flex-col shadow-none overflow-hidden border-2 border-foreground bg-card">
+      <CardHeader className="pb-4 border-b-2 border-foreground shrink-0 bg-card">
+        <CardTitle className="flex justify-between items-center text-sm font-black font-display tracking-wide">
+          <span>ANIMATION PREVIEW</span>
           {isLoading && (
-            <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
+            <RefreshCw className="h-4 w-4 animate-spin text-primary" />
           )}
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="flex-1 min-h-0 flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden">
+      <CardContent className="flex-1 min-h-0 flex flex-col items-center justify-center p-6 overflow-hidden">
         {showExpiredWarning && (
-          <div className="w-full mb-4 p-3 bg-primary/10 border border-primary/30 rounded flex items-center gap-2 text-sm shrink-0">
-            <AlertCircle className="h-4 w-4 text-primary shrink-0" />
-            <span className="text-foreground flex-1 text-xs sm:text-sm">
+          <div className="w-full mb-4 p-4 bg-background border-2 border-primary flex items-center gap-2 text-sm shrink-0">
+            <AlertCircle className="h-5 w-5 text-primary shrink-0" />
+            <span className="text-foreground flex-1 text-xs sm:text-sm font-mono">
               Video URL expired. Click refresh for a new link.
             </span>
             <Button
@@ -91,17 +91,17 @@ export default function VideoPlayer({
               variant="outline"
               onClick={handleRefreshUrl}
               disabled={isRefreshing}
-              className="shrink-0 h-7 text-xs"
+              className="shrink-0 h-8 text-xs font-bold border-2"
             >
               {isRefreshing ? (
                 <>
                   <RefreshCw className="h-3 w-3 animate-spin mr-1" />
-                  Refreshing
+                  REFRESHING
                 </>
               ) : (
                 <>
                   <RefreshCw className="h-3 w-3 mr-1" />
-                  Refresh
+                  REFRESH
                 </>
               )}
             </Button>
@@ -109,10 +109,10 @@ export default function VideoPlayer({
         )}
 
         {currentVideoUrl ? (
-          <div className="flex-1 min-h-0 w-full flex items-center justify-center overflow-hidden">
+          <div className="flex-1 min-h-0 w-full flex items-center justify-center overflow-hidden border-2 border-foreground">
             <video
               ref={videoRef}
-              className="w-full h-full rounded border border-border object-contain bg-black"
+              className="w-full h-full object-contain bg-black"
               controls
               autoPlay
               loop
@@ -125,29 +125,29 @@ export default function VideoPlayer({
             </video>
           </div>
         ) : (
-          <div className="w-full flex-1 flex flex-col items-center justify-center bg-muted/40 rounded border border-border p-6">
-            <div className="text-center space-y-4 max-w-md">
-              <p className="text-foreground text-sm sm:text-base font-medium">
+          <div className="w-full flex-1 flex flex-col items-center justify-center bg-background border-2 border-foreground p-6">
+            <div className="text-center space-y-6 max-w-md">
+              <p className="text-foreground text-sm sm:text-base font-black font-display">
                 {isLoading
-                  ? "Generating animation…"
-                  : "Your animation will appear here"}
+                  ? "GENERATING ANIMATION…"
+                  : "YOUR ANIMATION WILL APPEAR HERE"}
               </p>
               {isLoading && (
-                <div className="w-full max-w-xs mx-auto space-y-2">
-                  <div className="h-2 w-full bg-muted overflow-hidden rounded-full">
-                    <div 
+                <div className="w-full max-w-xs mx-auto space-y-3">
+                  <div className="h-3 w-full bg-muted border-2 border-foreground overflow-hidden">
+                    <div
                       className="h-full bg-primary transition-all duration-300 ease-out"
                       style={{ width: `${progress}%` }}
                     />
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    This may take 30-60 seconds
+                  <p className="text-xs text-muted-foreground font-mono">
+                    → This may take 30-60 seconds
                   </p>
                 </div>
               )}
               {!isLoading && (
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  Describe an animation in the chat to get started
+                <p className="text-xs sm:text-sm text-muted-foreground font-mono">
+                  → Describe an animation in the chat to get started
                 </p>
               )}
             </div>
@@ -156,11 +156,11 @@ export default function VideoPlayer({
       </CardContent>
 
       {currentVideoUrl && (
-        <div className="border-t border-border px-4 py-3 flex gap-2 bg-card">
+        <div className="border-t-2 border-foreground px-6 py-4 flex gap-2 bg-card">
           <Button
             variant="default"
             size="sm"
-            className="gap-1.5 text-xs h-8"
+            className="gap-2 text-xs h-9 font-bold border-2 border-primary"
             onClick={async () => {
               try {
                 const response = await fetch(currentVideoUrl);
@@ -182,23 +182,23 @@ export default function VideoPlayer({
               }
             }}
           >
-            <Download className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Download</span>
+            <Download className="h-4 w-4" />
+            <span className="hidden sm:inline">DOWNLOAD</span>
           </Button>
           {showExpiredWarning && (
             <Button
               variant="outline"
               size="sm"
-              className="gap-1.5 text-xs ml-auto h-8"
+              className="gap-2 text-xs ml-auto h-9 font-bold border-2"
               onClick={handleRefreshUrl}
               disabled={isRefreshing}
             >
               {isRefreshing ? (
-                <RefreshCw className="h-3 w-3 animate-spin" />
+                <RefreshCw className="h-4 w-4 animate-spin" />
               ) : (
-                <RefreshCw className="h-3 w-3" />
+                <RefreshCw className="h-4 w-4" />
               )}
-              <span className="hidden sm:inline">Refresh Link</span>
+              <span className="hidden sm:inline">REFRESH LINK</span>
             </Button>
           )}
         </div>

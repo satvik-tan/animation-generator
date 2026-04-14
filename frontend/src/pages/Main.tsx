@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { UserButton } from "@clerk/clerk-react";
-import { Menu, BarChart3 } from "lucide-react";
+import { Menu, ChartBar as BarChart3 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { useNavigate } from "react-router-dom";
 import ChatBox from "../components/ChatBox";
@@ -53,16 +53,15 @@ export default function Main() {
 
   return (
     <div className="flex h-screen bg-background text-foreground">
-      {/* Sidebar - Mobile overlay or desktop */}
       {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 z-30 bg-black/50 lg:hidden" 
+        <div
+          className="fixed inset-0 z-30 bg-black/70 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
-      
+
       <div
-        className={`fixed lg:relative inset-y-0 left-0 z-40 w-64 shrink-0 overflow-hidden border-r border-border bg-sidebar flex flex-col transition-[transform,width] duration-300 ${
+        className={`fixed lg:relative inset-y-0 left-0 z-40 w-64 shrink-0 overflow-hidden border-r-4 border-foreground bg-sidebar flex flex-col transition-[transform,width] duration-300 ${
           isSidebarOpen
             ? "translate-x-0 lg:w-64"
             : "-translate-x-full lg:translate-x-0 lg:w-0 lg:border-r-0"
@@ -77,43 +76,38 @@ export default function Main() {
         />
       </div>
 
-      {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Header */}
-        <header className="border-b border-border bg-card px-4 sm:px-6 py-4 flex items-center justify-between min-h-16">
+        <header className="border-b-4 border-foreground bg-card px-6 py-4 flex items-center justify-between min-h-20">
           <div className="flex items-center gap-3">
             {!isSidebarOpen && (
               <button
                 onClick={() => setIsSidebarOpen(true)}
-                className="p-2 hover:bg-accent rounded text-foreground transition-colors"
+                className="p-2 border-2 border-foreground hover:bg-primary/20 text-foreground transition-colors"
                 aria-label="Open sidebar"
                 aria-expanded={isSidebarOpen}
               >
                 <Menu className="h-5 w-5" />
               </button>
             )}
-            <svg className="h-5 w-5 text-foreground" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="6 3 20 12 6 21 6 3"></polyline>
-            </svg>
-            <h1 className="text-base sm:text-lg font-semibold text-foreground">Manimation</h1>
+            <div className="w-6 h-6 border-2 border-primary bg-primary" />
+            <h1 className="text-lg font-black font-display">MANIMATION</h1>
           </div>
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
               size="sm"
               onClick={() => navigate("/dashboard")}
+              className="border-2 border-foreground font-bold"
             >
               <BarChart3 className="h-4 w-4" />
-              <span className="hidden sm:inline ml-2">Dashboard</span>
+              <span className="hidden sm:inline ml-2">DASHBOARD</span>
             </Button>
             <UserButton />
           </div>
         </header>
 
-        {/* Content area */}
         <div className="flex flex-1 min-h-0 overflow-hidden flex-col lg:flex-row">
-          {/* Chat - Left on desktop, top on mobile */}
-          <div className="w-full lg:w-96 border-b lg:border-b-0 lg:border-r border-border flex flex-col bg-card overflow-hidden">
+          <div className="w-full lg:w-96 border-b-4 lg:border-b-0 lg:border-r-4 border-foreground flex flex-col bg-card overflow-hidden">
             <ChatBox
               key={chatKey}
               onVideoGenerated={handleVideoGenerated}
@@ -123,10 +117,9 @@ export default function Main() {
             />
           </div>
 
-          {/* Video - Right on desktop, bottom on mobile */}
-          <div className="flex-1 min-w-0 min-h-0 p-4 sm:p-6 overflow-hidden bg-background">
-            <VideoPlayer 
-              videoUrl={videoUrl} 
+          <div className="flex-1 min-w-0 min-h-0 p-6 overflow-hidden bg-background">
+            <VideoPlayer
+              videoUrl={videoUrl}
               isLoading={isGenerating}
               jobId={activeJobId ?? undefined}
               createdAt={activeJobCreatedAt}
