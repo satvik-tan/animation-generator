@@ -39,6 +39,10 @@ interface ChatBoxProps {
   activeJobId?: string | null;
 }
 
+function getErrorMessage(err: unknown, fallback = "Something went wrong") {
+  return err instanceof Error ? err.message : fallback;
+}
+
 export default function ChatBox({
   onVideoGenerated,
   onGenerationStart,
@@ -110,7 +114,7 @@ export default function ChatBox({
       const generatingMsg = parentId ? "Refining your animation…" : "Generating animation…";
       addMessage(generatingMsg, "bot", created.job_id);
 
-      const finished = await pollJob(created.job_id, getToken, 2000, (_update) => {});
+      const finished = await pollJob(created.job_id, getToken, 2000);
 
       if (finished.status === "completed" && finished.result_url) {
         addMessage("Animation ready", "bot", finished.job_id);
@@ -123,8 +127,8 @@ export default function ChatBox({
         addMessage(`Generation failed: ${err}`, "bot", finished.job_id);
         onGenerationError(err);
       }
-    } catch (err: any) {
-      const msg = err.message || "Something went wrong";
+    } catch (err: unknown) {
+      const msg = getErrorMessage(err);
       addMessage(`Error: ${msg}`, "bot");
       onGenerationError(msg);
     } finally {
@@ -141,9 +145,9 @@ export default function ChatBox({
       const token = await getToken();
       await cancelJob(currentJobId, token);
       addMessage("Cancelling…", "bot", currentJobId);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to cancel job:", err);
-      addMessage(`Cancel failed: ${err.message}`, "bot");
+      addMessage(`Cancel failed: ${getErrorMessage(err, "Unable to cancel job")}`, "bot");
     }
 
     setTimeout(() => {
@@ -174,13 +178,13 @@ export default function ChatBox({
   };
 
   return (
-    <Card className="flex flex-col h-full w-full rounded-none border-0 border-r border-gray-200 shadow-none bg-white">
-      <CardHeader className="pb-3 border-b border-gray-200 space-y-3 bg-gray-50">
-        <CardTitle className="text-base font-semibold text-gray-900">
+    <Card className="flex flex-col h-full w-full rounded-none border-0 border-r border-border shadow-none bg-card">
+      <CardHeader className="pb-3 border-b border-border space-y-3 bg-card">
+        <CardTitle className="text-base font-semibold text-foreground">
           {activeJobId ? "Refine Animation" : "New Animation"}
         </CardTitle>
         {activeJobId && (
-          <p className="text-xs text-gray-600 leading-relaxed">
+          <p className="text-xs text-muted-foreground leading-relaxed">
             Describe what to change. The AI will modify the animation.
           </p>
         )}
@@ -211,12 +215,12 @@ export default function ChatBox({
         {selectedModel === 'gemini' && (
           <div className="flex items-center justify-between text-xs">
             {hasCustomGeminiKey() ? (
-              <span className="text-green-700 flex items-center gap-1">
+              <span className="text-green-400 flex items-center gap-1">
                 <Key className="h-3 w-3" />
                 Using your API key
               </span>
             ) : (
-              <span className="text-gray-600">
+              <span className="text-muted-foreground">
                 {remainingJobs} free requests left
               </span>
             )}
@@ -224,7 +228,7 @@ export default function ChatBox({
               size="sm"
               variant="ghost"
               onClick={() => setShowApiKeyInput(!showApiKeyInput)}
-              className="h-6 px-2 text-xs hover:bg-gray-200"
+              className="h-6 px-2 text-xs hover:bg-accent"
             >
               <Key className="h-3 w-3 mr-1" />
               {hasCustomGeminiKey() ? 'Manage' : 'Add Key'}
@@ -234,14 +238,14 @@ export default function ChatBox({
 
         {/* API Key Input */}
         {showApiKeyInput && selectedModel === 'gemini' && (
-          <div className="space-y-2 p-3 bg-gray-100 rounded-lg border border-gray-300">
-            <label className="text-xs font-medium text-gray-900">Gemini API Key</label>
+          <div className="space-y-2 p-3 bg-muted rounded-lg border border-border">
+            <label className="text-xs font-medium text-foreground">Gemini API Key</label>
             <input
               type="password"
               value={apiKeyInput}
               onChange={(e) => setApiKeyInput(e.target.value)}
               placeholder="Enter your Gemini API key..."
-              className="w-full px-2 py-1.5 text-xs rounded border border-gray-300 bg-white"
+              className="w-full px-2 py-1.5 text-xs rounded border border-input bg-background text-foreground placeholder:text-muted-foreground"
               disabled={isLoading}
             />
             <div className="flex gap-2">
@@ -273,13 +277,13 @@ export default function ChatBox({
                 Cancel
               </Button>
             </div>
-            <p className="text-[10px] text-gray-600">
+            <p className="text-[10px] text-muted-foreground">
               Get your free API key at{' '}
               <a
                 href="https://aistudio.google.com/app/apikey"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="underline hover:text-gray-900"
+                className="underline hover:text-foreground"
               >
                 Google AI Studio
               </a>
@@ -288,15 +292,15 @@ export default function ChatBox({
         )}
       </CardHeader>
 
-      <CardContent className="flex-1 p-0 overflow-hidden bg-white">
+      <CardContent className="flex-1 p-0 overflow-hidden bg-card">
         <ScrollArea className="h-full px-4 py-4">
           <div className="space-y-3">
             {messages.length === 0 && (
               <div className="text-center pt-12 space-y-3">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-muted-foreground">
                   Describe the animation you want to create
                 </p>
-                <div className="text-xs text-gray-500 space-y-2 pt-4">
+                <div className="text-xs text-muted-foreground space-y-2 pt-4">
                   <p className="italic">Example: "A circle morphing into a square"</p>
                   <p className="italic">Example: "Show Pythagorean theorem with animation"</p>
                 </div>
@@ -312,8 +316,8 @@ export default function ChatBox({
                 <div
                   className={`max-w-[85%] rounded px-3 py-2 text-sm ${
                     msg.sender === "user"
-                      ? "bg-gray-900 text-white"
-                      : "bg-gray-50 border border-gray-200 text-gray-900"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted border border-border text-foreground"
                   }`}
                 >
                   {msg.text}
@@ -325,7 +329,7 @@ export default function ChatBox({
         </ScrollArea>
       </CardContent>
 
-      <CardFooter className="p-4 border-t border-gray-200 bg-white">
+      <CardFooter className="p-4 border-t border-border bg-card">
         <div className="flex w-full items-end gap-2">
           <Textarea
             placeholder={
@@ -341,7 +345,7 @@ export default function ChatBox({
                 handleSend();
               }
             }}
-            className="min-h-[56px] max-h-[120px] resize-none text-sm border-gray-300"
+            className="min-h-[56px] max-h-[120px] resize-none text-sm border-input"
             disabled={isLoading}
           />
           {isLoading && currentJobId ? (

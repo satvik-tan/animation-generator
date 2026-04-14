@@ -69,21 +69,21 @@ export default function VideoPlayer({
   };
 
   return (
-    <Card className="w-full h-full flex flex-col shadow-none overflow-hidden border border-gray-200 bg-white rounded-lg">
-      <CardHeader className="pb-3 border-b border-gray-200 shrink-0 bg-gray-50">
-        <CardTitle className="flex justify-between items-center text-base font-semibold text-gray-900">
+    <Card className="w-full h-full flex flex-col shadow-none overflow-hidden border border-border bg-card rounded-lg">
+      <CardHeader className="pb-3 border-b border-border shrink-0 bg-card">
+        <CardTitle className="flex justify-between items-center text-base font-semibold text-foreground">
           <span>Animation Preview</span>
           {isLoading && (
-            <RefreshCw className="h-4 w-4 animate-spin text-gray-600" />
+            <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
           )}
         </CardTitle>
       </CardHeader>
 
       <CardContent className="flex-1 min-h-0 flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden">
         {showExpiredWarning && (
-          <div className="w-full mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded flex items-center gap-2 text-sm shrink-0">
-            <AlertCircle className="h-4 w-4 text-yellow-700 shrink-0" />
-            <span className="text-yellow-900 flex-1 text-xs sm:text-sm">
+          <div className="w-full mb-4 p-3 bg-primary/10 border border-primary/30 rounded flex items-center gap-2 text-sm shrink-0">
+            <AlertCircle className="h-4 w-4 text-primary shrink-0" />
+            <span className="text-foreground flex-1 text-xs sm:text-sm">
               Video URL expired. Click refresh for a new link.
             </span>
             <Button
@@ -112,7 +112,7 @@ export default function VideoPlayer({
           <div className="flex-1 min-h-0 w-full flex items-center justify-center overflow-hidden">
             <video
               ref={videoRef}
-              className="w-full h-full rounded border border-gray-200 object-contain bg-black"
+              className="w-full h-full rounded border border-border object-contain bg-black"
               controls
               autoPlay
               loop
@@ -125,28 +125,28 @@ export default function VideoPlayer({
             </video>
           </div>
         ) : (
-          <div className="w-full flex-1 flex flex-col items-center justify-center bg-gray-50 rounded border border-gray-200 p-6">
+          <div className="w-full flex-1 flex flex-col items-center justify-center bg-muted/40 rounded border border-border p-6">
             <div className="text-center space-y-4 max-w-md">
-              <p className="text-gray-700 text-sm sm:text-base font-medium">
+              <p className="text-foreground text-sm sm:text-base font-medium">
                 {isLoading
                   ? "Generating animation…"
                   : "Your animation will appear here"}
               </p>
               {isLoading && (
                 <div className="w-full max-w-xs mx-auto space-y-2">
-                  <div className="h-2 w-full bg-gray-200 overflow-hidden rounded-full">
+                  <div className="h-2 w-full bg-muted overflow-hidden rounded-full">
                     <div 
-                      className="h-full bg-gray-900 transition-all duration-300 ease-out"
+                      className="h-full bg-primary transition-all duration-300 ease-out"
                       style={{ width: `${progress}%` }}
                     />
                   </div>
-                  <p className="text-xs text-gray-600">
+                  <p className="text-xs text-muted-foreground">
                     This may take 30-60 seconds
                   </p>
                 </div>
               )}
               {!isLoading && (
-                <p className="text-xs sm:text-sm text-gray-600">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   Describe an animation in the chat to get started
                 </p>
               )}
@@ -156,7 +156,7 @@ export default function VideoPlayer({
       </CardContent>
 
       {currentVideoUrl && (
-        <div className="border-t border-gray-200 px-4 py-3 flex gap-2 bg-gray-50">
+        <div className="border-t border-border px-4 py-3 flex gap-2 bg-card">
           <Button
             variant="default"
             size="sm"
