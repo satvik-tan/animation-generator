@@ -20,6 +20,21 @@ const features = [
   },
 ];
 
+const showcaseAnimations = [
+  {
+    src: "/animation-72a5d7d7-aa31-477b-9d03-1ff4c87632d6.gif",
+    alt: "Generated animation sample 1",
+  },
+  {
+    src: "/animation-d5f531ea-4019-471e-8cb8-c3c17ce55f25.gif",
+    alt: "Generated animation sample 2",
+  },
+  {
+    src: "/animation-e6ce1547-a46e-4195-9899-3d0e031e6837.gif",
+    alt: "Generated animation sample 3",
+  },
+];
+
 export default function Landing() {
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -72,6 +87,22 @@ export default function Landing() {
           <p className="mt-8 text-sm font-mono text-muted-foreground">
             3 free Gemini requests · Unlimited Groq · No paid tier
           </p>
+
+          <div className="mt-12 grid gap-4 sm:grid-cols-3">
+            {showcaseAnimations.map((animation) => (
+              <div
+                key={animation.src}
+                className="overflow-hidden border-2 border-foreground bg-card"
+              >
+                <img
+                  src={animation.src}
+                  alt={animation.alt}
+                  className="h-40 w-full object-cover"
+                  loading="lazy"
+                />
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
