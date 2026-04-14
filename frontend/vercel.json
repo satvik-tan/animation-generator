@@ -1,6 +1,8 @@
 {
   "routes": [
     { "handle": "filesystem" },
+    { "src": "/favicon\\.ico", "dest": "/favicon.ico" },
+    { "src": ".*\\.gif", "dest": "/$0" },
     { "src": "/.*", "dest": "/index.html" }
   ]
 }
